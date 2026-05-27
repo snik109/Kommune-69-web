@@ -12,7 +12,7 @@ const statusBadge = (s) => {
   return map[s?.toLowerCase()] || 'badge-neutral';
 };
 
-function CreateModal({ onClose, onCreated, statuses, priorities }) {
+function CreateModal({ onClose, onCreated, statuses = [], priorities = [] }) {
   const [form, setForm] = useState({ tittel: '', beskrivelse: '', statusId: '', prioriteringId: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -55,14 +55,14 @@ function CreateModal({ onClose, onCreated, statuses, priorities }) {
               <label>Status</label>
               <select className="select" value={form.statusId} onChange={e => set('statusId', e.target.value)}>
                 <option value="">Velg status</option>
-                {statuses.map(s => <option key={s.id} value={s.id}>{s.navn}</option>)}
+                {(statuses || []).map(s => <option key={s.id} value={s.id}>{s.navn}</option>)}
               </select>
             </div>
             <div className="field">
               <label>Prioritering</label>
               <select className="select" value={form.prioriteringId} onChange={e => set('prioriteringId', e.target.value)}>
                 <option value="">Velg prioritering</option>
-                {priorities.map(p => <option key={p.id} value={p.id}>{p.navn}</option>)}
+                {(priorities || []).map(p => <option key={p.id} value={p.id}>{p.navn}</option>)}
               </select>
             </div>
           </div>
@@ -95,9 +95,11 @@ export default function HendelserPage({ onSelect }) {
           lookup.getStatuses(),
           lookup.getPriorities(),
         ]);
-        setItems(h);
-        setStatuses(s);
-        setPriorities(p);
+        
+        setItems(Array.isArray(h) ? h : []);
+        // Accessing the nested arrays in the response objects
+        setStatuses(s?.statuser || []);
+        setPriorities(p?.prioriteringer || []);
       } catch (err) {
         setError(err.message);
       } finally {

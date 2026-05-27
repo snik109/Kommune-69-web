@@ -13,7 +13,7 @@ function normalizeHendelse(raw) {
     prioritering: raw.Prioritering ?? raw.prioritering ?? raw.priority ?? '',
     ansvarlig: raw.Ansvarlig ?? raw.ansvarlig ?? raw.responsible ?? '',
     tidspunkt_opprettet: raw.Tidspunkt_Opprettet ?? raw.tidspunkt_opprettet ?? raw.created_at ?? new Date().toISOString(),
-    ...raw, // preserve any other fields
+    ...raw, 
   };
 }
 
@@ -35,7 +35,7 @@ function HendelseCard({ hendelse, onSelect }) {
   );
 }
 
-function DetailPanel({ hendelse, users, statuses, onClose, onUpdated }) {
+function DetailPanel({ hendelse, users, statuses = [], onClose, onUpdated }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [loadingComments, setLoadingComments] = useState(true);
@@ -109,7 +109,7 @@ function DetailPanel({ hendelse, users, statuses, onClose, onUpdated }) {
               onChange={e => handleStatusChange(e.target.value)}
               disabled={saving}
             >
-              {statuses.map(s => (
+              {(statuses || []).map(s => (
                 <option key={s.id} value={s.navn}>{s.navn}</option>
               ))}
             </select>
@@ -207,11 +207,14 @@ export default function ManagementPage() {
         const [h, u, s] = await Promise.all([
           hendelser.getAll(),
           brukere.getAll(),
-          lookup.getStatuses?.() || Promise.resolve([]),
+          lookup.getStatuses?.() || Promise.resolve({ statuser: [] }),
         ]);
         const hendelserNormalized = Array.isArray(h) ? h.map(normalizeHendelse) : [];
         const usersNormalized = Array.isArray(u) ? u : [];
-        const statusesNormalized = Array.isArray(s) ? s : [];
+        
+        // Extracting statuser array from the response object
+        const statusesNormalized = Array.isArray(s?.statuser) ? s.statuser : [];
+        
         setHendelserList(hendelserNormalized);
         setUsers(usersNormalized);
         setStatuses(statusesNormalized);
@@ -279,11 +282,11 @@ export default function ManagementPage() {
           statuses={statuses}
           onClose={() => setSelectedHendelse(null)}
           onUpdated={() => {
-            setHendelserList(prev => prev.map(h => 
-              h.id === selectedHendelse.id 
-                ? { ...h, status: selectedHendelse.status }
-                : h
-            ));
+            // Refetch or local update logic
+            hendelser.getAll().then(h => {
+                const normalized = Array.isArray(h) ? h.map(normalizeHendelse) : [];
+                setHendelserList(normalized);
+            });
           }}
         />
       )}
