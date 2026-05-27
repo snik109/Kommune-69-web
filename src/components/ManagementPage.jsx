@@ -32,7 +32,6 @@ function DetailPanel({ hendelse, statuses = [], users = [], onClose, onUpdated }
   const currentUser = JSON.parse(localStorage.getItem('user'));
   const innloggetBrukerId = currentUser?.Bruker_ID || currentUser?.id;
 
-  // Hent kommentarer og tiltak når hendelseId endres
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
@@ -57,7 +56,7 @@ function DetailPanel({ hendelse, statuses = [], users = [], onClose, onUpdated }
     setSaving(true);
     try {
       await hendelser.updateStatus(hendelse.id, statusObj.Status_ID);
-      onUpdated();
+      await onUpdated();
     } catch (err) {
       alert("Feil ved statusoppdatering: " + err.message);
     } finally {
@@ -68,9 +67,10 @@ function DetailPanel({ hendelse, statuses = [], users = [], onClose, onUpdated }
   const handleResponsibleChange = async (valgtBrukerId) => {
     setSaving(true);
     try {
-      // Bruker din spesifikke rute som krever { ansvarligId }
-      await hendelser.updateResponsible(hendelse.id, valgtBrukerId || null);
-      onUpdated();
+      // VIKTIG: Sørg for at vi sender ID som tall hvis det er det backenden venter
+      const bId = valgtBrukerId === "" ? null : Number(valgtBrukerId);
+      await hendelser.updateResponsible(hendelse.id, bId);
+      await onUpdated();
     } catch (err) {
       alert("Kunne ikke endre ansvarlig: " + err.message);
     } finally {
@@ -168,8 +168,8 @@ function DetailPanel({ hendelse, statuses = [], users = [], onClose, onUpdated }
         </div>
 
         <div className={styles.detailSection}>
-          <h3>Kommentarlogg</h3>
-          <div className={styles.commentsList} style={{ maxHeight: '250px', overflowY: 'auto' }}>
+          <h3>Kommentarer</h3>
+          <div className={styles.commentsList}>
             {comments.map(c => (
               <div key={c.Kommentar_ID} className={styles.comment} style={{ marginBottom: '0.5rem', padding: '0.5rem', background: '#f1f3f5', borderRadius: '4px' }}>
                 <div style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{c.DisplayName}</div>
@@ -178,7 +178,7 @@ function DetailPanel({ hendelse, statuses = [], users = [], onClose, onUpdated }
             ))}
           </div>
           <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <textarea className="textarea" value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Skriv en kommentar..." rows="2" />
+            <textarea className="textarea" value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Skriv kommentar..." rows="2" />
             <button className="btn btn-primary btn-sm" onClick={handleAddComment} disabled={saving || !newComment.trim()}>Send</button>
           </div>
         </div>
@@ -205,7 +205,6 @@ export default function ManagementPage({ initialId, onClearInitial }) {
       
       const normalized = Array.isArray(h) ? h.map(normalizeHendelse) : [];
       
-      // Sortering: Åpen/Behandles først, deretter prioritering
       const order = { 'åpen': 1, 'under behandling': 2, 'løst': 3, 'lukket': 4 };
       const sorted = normalized.sort((a, b) => {
         const aVal = order[a.status.toLowerCase()] || 99;
@@ -222,16 +221,16 @@ export default function ManagementPage({ initialId, onClearInitial }) {
     } finally {
       setLoading(false);
     }
-  }, []); // Viktig: Tom array forhindrer evig loop/spamming
+  }, []); // BEHOLD TOM: Dette er kritisk for å stoppe spamming.
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
+  // Finn hendelsen i den eksisterende listen
   const selectedHendelse = hendelserList.find(h => h.id === selectedHendelseId);
-  const filtered = hendelserList.filter(h => h.tittel.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  if (loading && !selectedHendelseId) return <div className="loading-center">Laster...</div>;
+  const filtered = hendelserList.filter(h => h.tittel.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className={`${styles.management} ${selectedHendelse ? styles.withDetail : ''}`}>
@@ -242,7 +241,7 @@ export default function ManagementPage({ initialId, onClearInitial }) {
 
         <input 
           className="input" 
-          placeholder="Søk i titler..." 
+          placeholder="Søk..." 
           value={searchTerm} 
           onChange={e => setSearchTerm(e.target.value)} 
           style={{ marginBottom: '1.5rem', maxWidth: '400px' }}
