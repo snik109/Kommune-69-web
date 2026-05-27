@@ -50,6 +50,7 @@ export const brukere = {
 
 // --- Roller ---
 export const roller = {
+  getAll: () => request('/roller'),
   assign: (brukerId, rolleId) =>
     request(`/roller/${brukerId}/roller`, { method: 'POST', body: JSON.stringify({ rolleId }) }),
   remove: (brukerId, rolleId) =>

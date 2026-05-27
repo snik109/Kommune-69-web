@@ -267,7 +267,7 @@ export default function AdminPage() {
   useEffect(() => {
     Promise.all([
       brukere.getAll(),
-      lookup.getRoles(),
+      roller.getAll(),
       lookup.getCategories(),
     ])
       .then(([u, r, k]) => {
