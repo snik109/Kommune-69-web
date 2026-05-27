@@ -71,8 +71,8 @@ export const hendelser = {
       }),
   updatePriority: (id, prioritering) =>
     request(`/hendelser/${id}/prioritering`, { method: 'PATCH', body: JSON.stringify({ prioritering }) }),
-  updateResponsible: (id, ansvarligId) =>
-    request(`/hendelser/${id}/ansvarlig`, { method: 'PATCH', body: JSON.stringify({ ansvarligId }) }),
+  updateResponsible: (id, brukerId) =>
+    request(`/hendelser/${id}/ansvarlig`, { method: 'PATCH', body: JSON.stringify({ brukerId }) }),
   getCategories: (id) => request(`/hendelser/${id}/kategorier`),
   addCategory: (id, kategoriId) =>
     request(`/hendelser/${id}/kategorier`, { method: 'POST', body: JSON.stringify({ kategoriId }) }),

@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { hendelser, kommentarer, lookup, tiltak, brukere } from '../services/api';
 import styles from '../styles/ManagementPage.module.css';
 
+/**
+ * Mapper databasefelt (PascalCase) til frontend-felt (camelCase)
+ */
 function normalizeHendelse(raw) {
   if (!raw) return null;
   return {
@@ -18,7 +21,7 @@ function normalizeHendelse(raw) {
   };
 }
 
-function DetailPanel({ hendelse, statuses, users, onClose, onUpdated }) {
+function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated }) {
   const [comments, setComments] = useState([]);
   const [actions, setActions] = useState([]);
   const [newComment, setNewComment] = useState('');
@@ -29,6 +32,7 @@ function DetailPanel({ hendelse, statuses, users, onClose, onUpdated }) {
   const currentUser = JSON.parse(localStorage.getItem('user'));
   const innloggetBrukerId = currentUser?.Bruker_ID || currentUser?.id;
 
+  // Hent kommentarer og tiltak
   useEffect(() => {
     let isMounted = true;
     setLoadingDetails(true);
@@ -45,37 +49,37 @@ function DetailPanel({ hendelse, statuses, users, onClose, onUpdated }) {
     return () => { isMounted = false; };
   }, [hendelse.id]);
 
-  const handleStatusChange = async (e) => {
-    const val = e.target.value;
+  const handleStatusChange = async (val) => {
     const obj = statuses.find(s => s.Navn === val);
     if (!obj) return;
     setSaving(true);
     try {
       await hendelser.updateStatus(hendelse.id, obj.Status_ID);
       await onUpdated();
-    } catch (err) {
-      alert("Feil ved status: " + err.message);
-    } finally {
-      setSaving(false);
-    }
+    } catch (err) { alert("Statusfeil: " + err.message); }
+    finally { setSaving(false); }
   };
 
-  const handleResponsibleChange = async (e) => {
-    const val = e.target.value;
+  const handlePriorityChange = async (val) => {
+    const obj = priorities.find(p => p.Navn === val);
+    if (!obj) return;
     setSaving(true);
     try {
-      const newId = val === "" ? null : Number(val);
-      
-      // Vi kaller API-et
-      await hendelser.updateResponsible(hendelse.id, newId);
-      
-      // Vi trigger en refresh av hovedlisten i ManagementPage
+      await hendelser.updatePriority(hendelse.id, obj.Prioritering_ID);
       await onUpdated();
-    } catch (err) {
-      alert("Kunne ikke tildele ansvarlig: " + err.message);
-    } finally {
-      setSaving(false);
-    }
+    } catch (err) { alert("Prioriteringsfeil: " + err.message); }
+    finally { setSaving(false); }
+  };
+
+  const handleResponsibleChange = async (val) => {
+    setSaving(true);
+    try {
+      const bId = val === "" ? null : Number(val);
+      // Pkt 1: Sender brukerId (ikke ansvarligId) til API-et
+      await hendelser.updateResponsible(hendelse.id, bId);
+      await onUpdated();
+    } catch (err) { alert("Ansvarlig-feil: " + err.message); }
+    finally { setSaving(false); }
   };
 
   const handleAddAction = async (e) => {
@@ -87,11 +91,21 @@ function DetailPanel({ hendelse, statuses, users, onClose, onUpdated }) {
       const res = await tiltak.getByHendelse(hendelse.id);
       setActions(res);
       setNewAction('');
-    } catch (err) {
-      alert("Feil ved tiltak: " + err.message);
-    } finally {
-      setSaving(false);
-    }
+    } catch (err) { alert("Tiltaksfeil: " + err.message); }
+    finally { setSaving(false); }
+  };
+
+  const handleAddComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim() || !innloggetBrukerId) return;
+    setSaving(true);
+    try {
+      await kommentarer.create(hendelse.id, innloggetBrukerId, newComment);
+      const res = await kommentarer.getByHendelse(hendelse.id);
+      setComments(res);
+      setNewComment('');
+    } catch (err) { alert("Kommentarfeil: " + err.message); }
+    finally { setSaving(false); }
   };
 
   return (
@@ -99,23 +113,24 @@ function DetailPanel({ hendelse, statuses, users, onClose, onUpdated }) {
       <div className={styles.detailHeader}>
         <div>
           <h2>Behandle hendelse</h2>
-          <small>{hendelse.tittel}</small>
+          <p style={{ margin: 0, fontSize: '0.9rem', color: 'gray' }}>{hendelse.tittel}</p>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); onClose(); }}>✕</button>
+        <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
       </div>
 
       <div className={styles.detailContent}>
-        <div className={styles.detailGrid} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div className={styles.detailGrid} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '1.5rem' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>STATUS</label>
-            <select 
-              className="select" 
-              value={hendelse.status} 
-              onChange={handleStatusChange} 
-              disabled={saving}
-              style={{ width: '100%' }}
-            >
+            <select className="select" value={hendelse.status} onChange={e => handleStatusChange(e.target.value)} disabled={saving}>
               {statuses.map(s => <option key={s.Status_ID} value={s.Navn}>{s.Navn}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>PRIORITET</label>
+            <select className="select" value={hendelse.prioritering} onChange={e => handlePriorityChange(e.target.value)} disabled={saving}>
+              {priorities.map(p => <option key={p.Prioritering_ID} value={p.Navn}>{p.Navn}</option>)}
             </select>
           </div>
 
@@ -124,11 +139,10 @@ function DetailPanel({ hendelse, statuses, users, onClose, onUpdated }) {
             <select 
               className="select" 
               value={hendelse.ansvarligId ? String(hendelse.ansvarligId) : ""} 
-              onChange={handleResponsibleChange} 
+              onChange={e => handleResponsibleChange(e.target.value)} 
               disabled={saving}
-              style={{ width: '100%' }}
             >
-              <option value="">-- Velg ansvarlig --</option>
+              <option value="">-- Ingen --</option>
               {users.map(u => (
                 <option key={u.Bruker_ID} value={String(u.Bruker_ID)}>
                   {u.DisplayName || u.brukernavn}
@@ -141,23 +155,37 @@ function DetailPanel({ hendelse, statuses, users, onClose, onUpdated }) {
         <hr className="divider" />
 
         <div className={styles.detailSection}>
-          <h3>Tiltak</h3>
+          <h3>Utførte Tiltak</h3>
           <div className={styles.actionsList}>
             {actions.map(a => (
               <div key={a.Tiltak_ID} className={styles.actionItem} style={{ background: '#f5f5f5', padding: '10px', borderRadius: '4px', marginBottom: '5px' }}>
                 <p style={{ margin: 0, fontSize: '0.9rem' }}>{a.Beskrivelse}</p>
-                <small>{a.UtførtAvNavn}</small>
+                <small>{a.UtførtAvNavn} • {new Date(a.Tidspunkt).toLocaleDateString()}</small>
               </div>
             ))}
           </div>
           <form onSubmit={handleAddAction} style={{ display: 'flex', gap: '5px', marginTop: '10px' }}>
-            <input 
-              className="input" 
-              placeholder="Beskriv nytt tiltak..." 
-              value={newAction} 
-              onChange={e => setNewAction(e.target.value)} 
-            />
-            <button type="submit" className="btn btn-primary btn-sm" disabled={saving || !newAction.trim()}>Legg til</button>
+            <input className="input" placeholder="Nytt tiltak..." value={newAction} onChange={e => setNewAction(e.target.value)} />
+            <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>Legg til</button>
+          </form>
+        </div>
+
+        <div className={styles.detailSection} style={{ marginTop: '1.5rem' }}>
+          <h3>Kommentarlogg</h3>
+          <div className={styles.commentsList} style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '10px' }}>
+            {comments.map(c => (
+              <div key={c.Kommentar_ID} style={{ borderBottom: '1px solid #eee', padding: '5px 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <strong>{c.DisplayName}</strong>
+                  <span>{new Date(c.Tidspunkt).toLocaleString()}</span>
+                </div>
+                <p style={{ margin: '5px 0 0', fontSize: '0.85rem' }}>{c.Tekst}</p>
+              </div>
+            ))}
+          </div>
+          <form onSubmit={handleAddComment} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            <textarea className="textarea" placeholder="Skriv kommentar..." value={newComment} onChange={e => setNewComment(e.target.value)} rows="2" />
+            <button type="submit" className="btn btn-primary btn-sm" disabled={saving || !newComment.trim()}>Send kommentar</button>
           </form>
         </div>
       </div>
@@ -168,6 +196,7 @@ function DetailPanel({ hendelse, statuses, users, onClose, onUpdated }) {
 export default function ManagementPage({ initialId, onClearInitial }) {
   const [hendelserList, setHendelserList] = useState([]);
   const [statuses, setStatuses] = useState([]);
+  const [priorities, setPriorities] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(initialId || null);
@@ -175,14 +204,16 @@ export default function ManagementPage({ initialId, onClearInitial }) {
 
   const loadData = useCallback(async () => {
     try {
-      const [h, s, u] = await Promise.all([
+      const [h, s, p, u] = await Promise.all([
         hendelser.getAll(),
         lookup.getStatuses(),
+        lookup.getPriorities(),
         brukere.getAll()
       ]);
       
       const normalized = Array.isArray(h) ? h.map(normalizeHendelse) : [];
       
+      // Sortering (Åpen -> Behandles -> Løst -> Lukket)
       const order = { 'åpen': 1, 'under behandling': 2, 'løst': 3, 'lukket': 4 };
       normalized.sort((a, b) => {
         const aVal = order[a.status.toLowerCase()] || 99;
@@ -192,20 +223,16 @@ export default function ManagementPage({ initialId, onClearInitial }) {
 
       setHendelserList(normalized);
       setStatuses(s?.statuser || []);
+      setPriorities(p?.prioriteringer || []);
       setUsers(Array.isArray(u) ? u : []);
-    } catch (err) {
-      console.error("Feil ved henting av data:", err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error("Data-load feilet:", err); }
+    finally { setLoading(false); }
   }, []);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const selectedHendelse = useMemo(() => 
-    hendelserList.find(h => h.id === selectedId) || null,
+    hendelserList.find(h => h.id === selectedId),
     [hendelserList, selectedId]
   );
 
@@ -214,38 +241,31 @@ export default function ManagementPage({ initialId, onClearInitial }) {
     [hendelserList, searchTerm]
   );
 
-  const handleCardClick = (id) => {
-    setSelectedId(id);
-  };
-
-  if (loading && !hendelserList.length) return <div className="loading-center">Laster hendelser...</div>;
+  if (loading && !hendelserList.length) return <div className="loading-center">Laster system...</div>;
 
   return (
     <div className={`${styles.management} ${selectedHendelse ? styles.withDetail : ''}`}>
       <div className={styles.listPanel}>
-        <h1>Hendelsestyring</h1>
-        <input 
-          className="input" 
-          placeholder="Søk..." 
-          value={searchTerm} 
-          onChange={e => setSearchTerm(e.target.value)} 
-          style={{ marginBottom: '1.5rem', maxWidth: '300px' }}
-        />
+        <div className="page-header">
+          <h1>Hendelsestyring</h1>
+        </div>
+
+        <input className="input" placeholder="Søk i titler..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ marginBottom: '1rem', maxWidth: '300px' }} />
         
         <div className={styles.hendelserGrid}>
           {filtered.map(h => (
             <div 
               key={h.id} 
               className={`${styles.hendelseCard} ${selectedId === h.id ? styles.activeCard : ''}`}
-              onClick={() => handleCardClick(h.id)}
+              onClick={() => setSelectedId(h.id)}
               style={{ cursor: 'pointer', padding: '1rem', border: '1px solid #eee', borderRadius: '8px', marginBottom: '0.5rem' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <strong>{h.tittel}</strong>
                 <span className="badge">{h.status}</span>
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '5px' }}>
-                Ansvarlig: {h.ansvarlig || 'Ingen'}
+              <div style={{ fontSize: '0.8rem', marginTop: '5px', color: '#666' }}>
+                Prio: <strong>{h.prioritering}</strong> | Ansvarlig: {h.ansvarlig || 'Ingen'}
               </div>
             </div>
           ))}
@@ -256,6 +276,7 @@ export default function ManagementPage({ initialId, onClearInitial }) {
         <DetailPanel
           hendelse={selectedHendelse}
           statuses={statuses}
+          priorities={priorities}
           users={users}
           onClose={() => { setSelectedId(null); onClearInitial?.(); }}
           onUpdated={loadData}
