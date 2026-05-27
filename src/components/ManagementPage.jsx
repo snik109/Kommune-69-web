@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { hendelser, kommentarer, lookup } from '../services/api';
 import styles from '../styles/ManagementPage.module.css';
 
+// Mapper SQL-resultater (PascalCase) til frontend (camelCase)
 function normalizeHendelse(raw) {
   if (!raw) return raw;
   return {
@@ -21,6 +22,7 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
   const [loadingComments, setLoadingComments] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Henter innlogget bruker for kommentar-ID
   const currentUser = JSON.parse(localStorage.getItem('user'));
   const brukerId = currentUser?.id || currentUser?.Bruker_ID;
 
@@ -33,16 +35,16 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
   }, [hendelse.id]);
 
   async function handleStatusChange(newStatusNavn) {
+    const statusObj = (statuses || []).find(s => s.Navn === newStatusNavn);
+    if (!statusObj) return;
+
     setSaving(true);
     try {
-      const statusObj = (statuses || []).find(s => s.Navn === newStatusNavn);
-      if (!statusObj) return;
-
-      // SENDER: hendelseId, statusId
+      // PRESIST SOM FOREVENTET: { hendelseId, statusId }
       await hendelser.updateStatus(hendelse.id, statusObj.Status_ID);
       onUpdated?.(); 
     } catch (err) {
-      alert("Kunne ikke oppdatere status: " + err.message);
+      alert("Feil ved statusoppdatering: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -50,15 +52,17 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
 
   async function handleAddComment() {
     if (!newComment.trim() || !brukerId) return;
+    
     setSaving(true);
     try {
-      // SENDER: hendelseId, brukerId, tekst
+      // PRESIST SOM FORVENTET: { hendelseId, brukerId, tekst }
       await kommentarer.create(hendelse.id, brukerId, newComment);
+      
       const updated = await kommentarer.getByHendelse(hendelse.id);
       setComments(Array.isArray(updated) ? updated : []);
       setNewComment('');
     } catch (err) {
-      alert("Feil ved lagring av kommentar: " + err.message);
+      alert("Kunne ikke lagre kommentar: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -96,16 +100,19 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
         <div className={styles.detailSection}>
           <h3>Kommentarlogg</h3>
           <div className={styles.commentsList}>
-            {loadingComments ? <span>Laster...</span> : comments.map(c => (
+            {loadingComments ? (
+              <span>Laster...</span>
+            ) : comments.map(c => (
               <div key={c.id || c.Kommentar_ID} className={styles.comment}>
                 <div className={styles.commentMeta}>
-                  <strong>{c.brukernavn || c.DisplayName}</strong>
+                  <strong>{c.brukernavn || c.DisplayName || 'Ukjent'}</strong>
                   <span>{new Date(c.tidspunkt || c.Tidspunkt).toLocaleString('nb-NO')}</span>
                 </div>
                 <p>{c.tekst || c.Innhold}</p>
               </div>
             ))}
           </div>
+          
           <div className={styles.commentInputWrap}>
             <textarea 
               className="textarea" 
@@ -117,7 +124,9 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
               className="btn btn-primary" 
               onClick={handleAddComment} 
               disabled={saving || !newComment.trim()}
-            >Send</button>
+            >
+              {saving ? 'Lagrer...' : 'Send'}
+            </button>
           </div>
         </div>
       </div>
@@ -142,6 +151,7 @@ export default function ManagementPage({ initialId, onClearInitial }) {
       setHendelserList(normalized);
       setStatuses(s?.statuser || []);
 
+      // Autostart hvis vi kom fra Oversikt
       if (initialId) {
         const found = normalized.find(item => item.id === initialId);
         if (found) setSelectedHendelse(found);
@@ -172,10 +182,10 @@ export default function ManagementPage({ initialId, onClearInitial }) {
         <div className="page-header"><h1>Hendelsestyring</h1></div>
         <input
           className="input"
-          placeholder="Søk..."
+          placeholder="Søk i titler..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          style={{ marginBottom: '1rem' }}
+          style={{ marginBottom: '1.5rem' }}
         />
         <div className={styles.hendelserGrid}>
           {filtered.map(h => (
@@ -186,7 +196,7 @@ export default function ManagementPage({ initialId, onClearInitial }) {
             >
               <div className={styles.hendelseHeader}>
                 <h3>{h.tittel}</h3>
-                <span className="badge">{h.status}</span>
+                <span className="badge badge-neutral">{h.status}</span>
               </div>
             </div>
           ))}
@@ -199,9 +209,9 @@ export default function ManagementPage({ initialId, onClearInitial }) {
           statuses={statuses}
           onClose={handleClose}
           onUpdated={() => {
+            // Oppdaterer data og sørger for at panelet reflekterer ny status
             fetchData().then(() => {
-              // Oppdater det åpne panelet med ny info
-              hendelser.getAll().then(res => {
+               hendelser.getAll().then(res => {
                 const found = res.find(item => (item.Hendelse_ID || item.id) === selectedHendelse.id);
                 if (found) setSelectedHendelse(normalizeHendelse(found));
               });

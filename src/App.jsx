@@ -45,6 +45,7 @@ export default function App() {
   const admin = isAdmin(user);
   const management = isManagement(user);
 
+  // Funksjon for å hoppe fra oversikt til styring med valgt hendelse
   const handleSelectFromOversikt = (id) => {
     setSelectedHendelseId(id);
     setPage('management');
