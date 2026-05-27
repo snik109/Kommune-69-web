@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import LoginPage from './components/LoginPage';
 import HendelserPage from './components/HendelserPage';
-import HendelseDetailPage from './components/HendelseDetailPage';
 import BrukerePage from './components/BrukerePage';
 import AdminPage from './components/AdminPage';
 import ManagementPage from './components/ManagementPage';
@@ -31,7 +30,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
   });
   const [page, setPage] = useState('hendelser');
-  const [selectedHendelse, setSelectedHendelse] = useState(null);
+  const [selectedHendelseId, setSelectedHendelseId] = useState(null);
 
   async function handleLogout() {
     try { await auth.logout(); } catch {}
@@ -41,59 +40,45 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginPage onLogin={setUser} />;
+    return <LoginPage onLogin={u => setUser(u)} />;
   }
 
-  const admin      = isAdmin(user);
+  const admin = isAdmin(user);
   const management = isManagement(user);
 
-  // Build nav: everyone gets Hendelser, management+ gets Management, admin gets Brukere + Admin
-  const navItems = [
-    { key: 'hendelser',  label: 'Hendelser' },
-    ...(management ? [{ key: 'management', label: 'Hendelsestyring' }] : []),
-    ...(admin      ? [{ key: 'brukere',    label: 'Brukere'          }] : []),
-    ...(admin      ? [{ key: 'admin',      label: 'Admin'            }] : []),
-  ];
+  const nav = [
+    { key: 'hendelser', label: 'Oversikt' },
+    management && { key: 'management', label: 'Hendelsestyring' },
+    admin && { key: 'admin', label: 'Admin' },
+  ].filter(Boolean);
 
-  function navigate(key) {
-    setPage(key);
-    setSelectedHendelse(null);
-  }
+  const roleBadgeLabel = getRole(user);
 
-  const roleBadgeLabel = admin ? 'Admin' : management ? 'Management' : null;
+  // Navigasjonsfunksjon som brukes fra oversikten
+  const handleSelectFromOversikt = (id) => {
+    setSelectedHendelseId(id);
+    setPage('management');
+  };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <header style={{
-        background: 'var(--c-surface)',
-        borderBottom: '1px solid var(--c-border)',
-        padding: '0 1.5rem',
-        display: 'flex',
-        alignItems: 'center',
-        height: 52,
-        gap: '2rem',
-        flexShrink: 0,
+    <div className="app-container">
+      <header className={page === 'login' ? 'hide' : ''} style={{
+        display: 'flex', alignItems: 'center', gap: '2rem', padding: '1rem 2rem',
+        borderBottom: '1px solid var(--c-border)', backgroundColor: '#fff'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ width: 8, height: 8, background: 'var(--c-accent)', borderRadius: '50%', display: 'block' }} />
-          <span style={{ fontWeight: 600, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Hendelsesystem
-          </span>
-        </div>
-
-        <nav style={{ display: 'flex', gap: '0.25rem' }}>
-          {navItems.map(({ key, label }) => (
+        <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--c-primary)' }}>SIKKERHET</div>
+        
+        <nav style={{ display: 'flex', gap: '1rem' }}>
+          {nav.map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => navigate(key)}
+              onClick={() => {
+                setPage(key);
+                if (key !== 'management') setSelectedHendelseId(null);
+              }}
+              className="btn btn-ghost btn-sm"
               style={{
-                padding: '0.3rem 0.75rem',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                background: page === key ? 'var(--c-bg)' : 'transparent',
-                color: page === key ? 'var(--c-text)' : 'var(--c-muted)',
-                fontFamily: 'var(--font-sans)',
-                fontSize: '0.875rem',
+                color: page === key ? 'var(--c-primary)' : 'var(--c-text-2)',
                 fontWeight: page === key ? 500 : 400,
                 cursor: 'pointer',
               }}
@@ -118,18 +103,18 @@ export default function App() {
       </header>
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {page === 'hendelser' && !selectedHendelse && (
-          <HendelserPage onSelect={id => setSelectedHendelse(id)} />
+        {page === 'hendelser' && (
+          <HendelserPage onSelect={handleSelectFromOversikt} />
         )}
-        {page === 'hendelser' && selectedHendelse && (
-          <HendelseDetailPage
-            hendelseId={selectedHendelse}
-            onBack={() => setSelectedHendelse(null)}
+        
+        {page === 'management' && management && (
+          <ManagementPage 
+            initialId={selectedHendelseId} 
+            onClearInitial={() => setSelectedHendelseId(null)} 
           />
         )}
-        {page === 'management' && management && <ManagementPage />}
-        {page === 'brukere'    && admin      && <BrukerePage />}
-        {page === 'admin'      && admin      && <AdminPage />}
+        
+        {page === 'admin' && admin && <AdminPage />}
       </main>
     </div>
   );
