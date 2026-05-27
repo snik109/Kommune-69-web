@@ -5,7 +5,7 @@ import HendelseDetailPage from './components/HendelseDetailPage';
 import BrukerePage from './components/BrukerePage';
 import AdminPage from './components/AdminPage';
 import { auth } from './services/api';
-import './styles/global.css';
+import './styles/Global.css';
 
 function isAdmin(user) {
   if (!user) return false;

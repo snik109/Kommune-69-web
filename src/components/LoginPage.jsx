@@ -14,8 +14,11 @@ export default function LoginPage({ onLogin }) {
     setLoading(true);
     try {
       const data = await auth.login(brukernavn, passord);
+      console.log('[LOGIN] Response data:', data);
+      console.log('[LOGIN] Token to store:', data.token);
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      console.log('[LOGIN] Token stored:', localStorage.getItem('token'));
       onLogin?.(data.user);
     } catch (err) {
       setError(err.message || 'Innlogging feilet');

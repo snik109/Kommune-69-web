@@ -13,10 +13,16 @@ async function request(path, options = {}) {
     ...options.headers,
   };
 
+  console.log(`[API] ${options.method || 'GET'} ${BASE_URL}${path}`, { 
+    token: token ? `${token.substring(0, 20)}...` : 'NO TOKEN',
+    headers 
+  });
+
   const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }));
+    console.error(`[API] Error: ${res.status} ${res.statusText}`, error);
     throw new Error(error.message || 'Request failed');
   }
 
@@ -26,18 +32,27 @@ async function request(path, options = {}) {
 
 // --- Auth ---
 export const auth = {
-  login: (brukernavn, passord) =>
-    request('/brukere/login', { method: 'POST', body: JSON.stringify({ username: brukernavn, password: passord }) }),
+  login: async (brukernavn, passord) => {
+    console.log('[LOGIN] Attempting login with:', { brukernavn, passord });
+    const result = await request('/brukere/login', { 
+      method: 'POST', 
+      body: JSON.stringify({ username: brukernavn, password: passord }) 
+    });
+    console.log('[LOGIN] Response received:', result);
+    console.log('[LOGIN] Response keys:', Object.keys(result));
+    console.log('[LOGIN] Token field:', result.token);
+    console.log('[LOGIN] All fields:', JSON.stringify(result, null, 2));
+    return result;
+  },
   logout: () =>
     request('/brukere/logout', { method: 'POST' }),
-  register: (data) =>
+  register: (data) => {
     // normalize Norwegian field names to backend expectations
-    (() => {
-      const payload = { ...data };
-      if (payload.brukernavn) { payload.username = payload.brukernavn; delete payload.brukernavn; }
-      if (payload.passord) { payload.password = payload.passord; delete payload.passord; }
-      return request('/brukere/register', { method: 'POST', body: JSON.stringify(payload) });
-    })(),
+    const payload = { ...data };
+    if (payload.brukernavn) { payload.username = payload.brukernavn; delete payload.brukernavn; }
+    if (payload.passord) { payload.password = payload.passord; delete payload.passord; }
+    return request('/brukere/register', { method: 'POST', body: JSON.stringify(payload) });
+  },
 };
 
 // --- Brukere ---
