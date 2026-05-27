@@ -3,7 +3,7 @@ import { hendelser, lookup } from '../services/api';
 import styles from '../styles/HendelserPage.module.css';
 
 const priorityBadge = (p) => {
-  const map = { høy: 'badge-danger', medium: 'badge-warn', lav: 'badge-success' };
+  const map = { 'meget høy': 'badge-danger', høy: 'badge-danger', medium: 'badge-warn', lav: 'badge-success' };
   return map[p?.toLowerCase()] || 'badge-neutral';
 };
 
@@ -55,14 +55,22 @@ function CreateModal({ onClose, onCreated, statuses = [], priorities = [] }) {
               <label>Status</label>
               <select className="select" value={form.statusId} onChange={e => set('statusId', e.target.value)}>
                 <option value="">Velg status</option>
-                {(statuses || []).map(s => <option key={s.id} value={s.id}>{s.navn}</option>)}
+                {statuses.map(s => (
+                  <option key={s.Status_ID || s.id} value={s.Status_ID || s.id}>
+                    {s.Navn || s.navn}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="field">
               <label>Prioritering</label>
               <select className="select" value={form.prioriteringId} onChange={e => set('prioriteringId', e.target.value)}>
                 <option value="">Velg prioritering</option>
-                {(priorities || []).map(p => <option key={p.id} value={p.id}>{p.navn}</option>)}
+                {priorities.map(p => (
+                  <option key={p.Prioritering_ID || p.id} value={p.Prioritering_ID || p.id}>
+                    {p.Navn || p.navn}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -97,7 +105,7 @@ export default function HendelserPage({ onSelect }) {
         ]);
         
         setItems(Array.isArray(h) ? h : []);
-        // Accessing the nested arrays in the response objects
+        // Pakker ut listene fra objektene {"statuser": [...]} og {"prioriteringer": [...]}
         setStatuses(s?.statuser || []);
         setPriorities(p?.prioriteringer || []);
       } catch (err) {
@@ -109,7 +117,7 @@ export default function HendelserPage({ onSelect }) {
   }, []);
 
   const filtered = items.filter(h =>
-    h.tittel?.toLowerCase().includes(search.toLowerCase())
+    (h.tittel || h.Tittel || '').toLowerCase().includes(search.toLowerCase())
   );
 
   async function handleDelete(id, e) {
@@ -140,14 +148,12 @@ export default function HendelserPage({ onSelect }) {
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
-        <span className={styles.count}>{filtered.length} hendelse{filtered.length !== 1 ? 'r' : ''}</span>
+        <span className={styles.count}>{filtered.length} hendelser</span>
       </div>
 
       <div className="card" style={{ padding: 0 }}>
         {loading ? (
           <div className="loading-center"><span className="spinner" /></div>
-        ) : filtered.length === 0 ? (
-          <div className="empty"><h3>Ingen hendelser</h3><p>Opprett en ny hendelse for å komme i gang.</p></div>
         ) : (
           <div className="table-wrap">
             <table>
@@ -163,19 +169,14 @@ export default function HendelserPage({ onSelect }) {
               </thead>
               <tbody>
                 {filtered.map(h => (
-                  <tr key={h.id} className={styles.row} onClick={() => onSelect?.(h.id)} style={{ cursor: 'pointer' }}>
-                    <td><span className={styles.tittel}>{h.tittel}</span></td>
-                    <td><span className={`badge ${statusBadge(h.status)}`}>{h.status || '—'}</span></td>
-                    <td><span className={`badge ${priorityBadge(h.prioritering)}`}>{h.prioritering || '—'}</span></td>
-                    <td>{h.ansvarlig || <span style={{ color: 'var(--c-muted)' }}>Ikke tildelt</span>}</td>
-                    <td style={{ color: 'var(--c-muted)', fontSize: '0.8rem' }}>
-                      {h.opprettetTid ? new Date(h.opprettetTid).toLocaleDateString('nb-NO') : '—'}
-                    </td>
+                  <tr key={h.id} className={styles.row} onClick={() => onSelect?.(h.id)}>
+                    <td><span className={styles.tittel}>{h.tittel || h.Tittel}</span></td>
+                    <td><span className={`badge ${statusBadge(h.status || h.Status)}`}>{h.status || h.Status || '—'}</span></td>
+                    <td><span className={`badge ${priorityBadge(h.prioritering || h.Prioritering)}`}>{h.prioritering || h.Prioritering || '—'}</span></td>
+                    <td>{h.ansvarlig || 'Ikke tildelt'}</td>
+                    <td>{h.opprettetTid ? new Date(h.opprettetTid).toLocaleDateString('nb-NO') : '—'}</td>
                     <td>
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={e => handleDelete(h.id, e)}
-                      >Slett</button>
+                      <button className="btn btn-danger btn-sm" onClick={e => handleDelete(h.id, e)}>Slett</button>
                     </td>
                   </tr>
                 ))}
