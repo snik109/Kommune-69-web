@@ -13,7 +13,6 @@ const statusBadge = (s) => {
 };
 
 function CreateModal({ onClose, onCreated, statuses = [], priorities = [] }) {
-  // Vi sender kun tittel, beskrivelse, statusId og prioriteringId til API
   const [form, setForm] = useState({ tittel: '', beskrivelse: '', statusId: '', prioriteringId: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -56,7 +55,8 @@ function CreateModal({ onClose, onCreated, statuses = [], priorities = [] }) {
               <label>Status</label>
               <select className="select" value={form.statusId} onChange={e => set('statusId', e.target.value)}>
                 <option value="">Velg status</option>
-                {statuses.map(s => (
+                {/* SIKRING: Sjekker at statuses er en array før .map */}
+                {Array.isArray(statuses) && statuses.map(s => (
                   <option key={s.Status_ID} value={s.Status_ID}>{s.Navn}</option>
                 ))}
               </select>
@@ -65,7 +65,7 @@ function CreateModal({ onClose, onCreated, statuses = [], priorities = [] }) {
               <label>Prioritering</label>
               <select className="select" value={form.prioriteringId} onChange={e => set('prioriteringId', e.target.value)}>
                 <option value="">Velg prioritering</option>
-                {priorities.map(p => (
+                {Array.isArray(priorities) && priorities.map(p => (
                   <option key={p.Prioritering_ID} value={p.Prioritering_ID}>{p.Navn}</option>
                 ))}
               </select>
@@ -98,6 +98,7 @@ export default function HendelserPage({ onSelect }) {
         lookup.getPriorities(),
       ]);
       setItems(Array.isArray(h) ? h : []);
+      // Henter ut arrayene fra objektene
       setStatuses(s?.statuser || []);
       setPriorities(p?.prioriteringer || []);
     } catch (err) {
@@ -146,10 +147,9 @@ export default function HendelserPage({ onSelect }) {
                 {filtered.map(h => (
                   <tr key={h.Hendelse_ID || h.id} onClick={() => onSelect?.(h.Hendelse_ID || h.id)} style={{ cursor: 'pointer' }}>
                     <td><strong>{h.Tittel || h.tittel}</strong></td>
-                    {/* Bruker StatusNavn og PrioriteringNavn fra din API-respons */}
                     <td><span className={`badge ${statusBadge(h.StatusNavn)}`}>{h.StatusNavn || '—'}</span></td>
                     <td><span className={`badge ${priorityBadge(h.PrioriteringNavn)}`}>{h.PrioriteringNavn || '—'}</span></td>
-                    <td>{h.AnsvarligNavn || <span style={{ color: 'var(--c-muted)' }}>Ikke tildelt</span>}</td>
+                    <td>{h.AnsvarligNavn || 'Ikke tildelt'}</td>
                     <td>{h.Tidspunkt_Opprettet ? new Date(h.Tidspunkt_Opprettet).toLocaleDateString('nb-NO') : '—'}</td>
                   </tr>
                 ))}
