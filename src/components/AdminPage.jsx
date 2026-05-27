@@ -191,7 +191,6 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
 }
 
 // ─── Lookup table editor ───────────────────────────────────────
-// Generic add/display for static lookup tables (statuser, prioriteringer, kategorier, roller)
 
 function LookupTable({ label, items, loading, onAdd, onDelete }) {
   const [newNavn, setNewNavn] = useState('');
@@ -251,41 +250,30 @@ function LookupTable({ label, items, loading, onAdd, onDelete }) {
 // ─── Main AdminPage ────────────────────────────────────────────
 
 export default function AdminPage() {
-  // Users
-  const [users, setUsers]       = useState(null);
-  const [roles, setRoles]       = useState([]);
+  const [users, setUsers] = useState(null);
+  const [roles, setRoles] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [editUser, setEditUser] = useState(null);
   const [showRegister, setShowRegister] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-
-  // Lookup data
-  const [statuses, setStatuses]         = useState([]);
-  const [priorities, setPriorities]     = useState([]);
-  const [categories, setCategories]     = useState([]);
   const [lookupLoading, setLookupLoading] = useState(true);
-
   const [error, setError] = useState('');
 
   useEffect(() => {
     Promise.all([
       brukere.getAll(),
       lookup.getRoles(),
-      lookup.getStatuses(),
-      lookup.getPriorities(),
       lookup.getCategories(),
     ])
-      .then(([u, r, s, p, k]) => {
+      .then(([u, r, k]) => {
         setUsers(u);
         setRoles(r);
-        setStatuses(s);
-        setPriorities(p);
         setCategories(k);
       })
       .catch(err => setError(err.message))
       .finally(() => setLookupLoading(false));
   }, []);
 
-  // User actions
   async function handleDeleteUser(id) {
     try {
       await brukere.delete(id);
@@ -296,13 +284,9 @@ export default function AdminPage() {
     }
   }
 
-  // Note: lookup endpoints in your API are GET-only (no POST/DELETE routes shown).
-  // The add/delete handlers below are wired up and ready — connect them when
-  // you add those routes to the backend.
   async function handleLookupAdd(setter, endpoint, navn) {
     try {
-      // const created = await endpoint(navn);
-      // setter(prev => [...prev, created]);
+      // Logic for backend communication goes here
       alert(`Backend POST route needed to add "${navn}"`);
     } catch (err) {
       alert(err.message);
@@ -315,7 +299,7 @@ export default function AdminPage() {
         <div>
           <h1>Admin</h1>
           <p style={{ color: 'var(--c-muted)', fontSize: '0.875rem', marginTop: '0.2rem' }}>
-            Brukere og statiske verdier
+            Brukere, kategorier og roller
           </p>
         </div>
         <span className={styles.adminBadge}>Admin</span>
@@ -323,7 +307,6 @@ export default function AdminPage() {
 
       {error && <div className="alert alert-error" style={{ marginBottom: '1.25rem' }}>{error}</div>}
 
-      {/* ── Users ──────────────────────────────────────────── */}
       <Section
         title="Brukere"
         description="Opprett, rediger og slett brukerkontoer og tilordne roller."
@@ -392,24 +375,11 @@ export default function AdminPage() {
         </div>
       </Section>
 
-      {/* ── Static / lookup values ──────────────────────────── */}
       <Section
         title="Statiske verdier"
-        description="Administrer oppslagsverdier brukt i hendelsessystemet."
+        description="Administrer roller og kategorier."
       >
         <div className={styles.lookupGrid}>
-          <LookupTable
-            label="Statuser"
-            items={statuses}
-            loading={lookupLoading}
-            onAdd={navn => handleLookupAdd(setStatuses, null, navn)}
-          />
-          <LookupTable
-            label="Prioriteringer"
-            items={priorities}
-            loading={lookupLoading}
-            onAdd={navn => handleLookupAdd(setPriorities, null, navn)}
-          />
           <LookupTable
             label="Kategorier"
             items={categories}
