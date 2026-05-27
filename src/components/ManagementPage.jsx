@@ -15,32 +15,16 @@ function normalizeHendelse(raw) {
   };
 }
 
-function HendelseCard({ hendelse, onSelect, isActive }) {
-  return (
-    <div 
-      className={`card ${styles.hendelseCard} ${isActive ? styles.activeCard : ''}`} 
-      onClick={() => onSelect(hendelse)}
-      style={isActive ? { borderColor: 'var(--c-primary)', backgroundColor: 'var(--bg-alt)' } : {}}
-    >
-      <div className={styles.hendelseHeader}>
-        <h3>{hendelse.tittel}</h3>
-        <span className="badge badge-neutral">{hendelse.status || '—'}</span>
-      </div>
-      <p style={{ color: 'var(--c-text-2)', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-        {hendelse.beskrivelse ? (hendelse.beskrivelse.substring(0, 80) + '...') : 'Ingen beskrivelse'}
-      </p>
-    </div>
-  );
-}
-
 function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [loadingComments, setLoadingComments] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const currentUser = JSON.parse(localStorage.getItem('user'));
+  const brukerId = currentUser?.id || currentUser?.Bruker_ID;
+
   useEffect(() => {
-    if (!hendelse) return;
     setLoadingComments(true);
     kommentarer.getByHendelse(hendelse.id)
       .then(data => setComments(Array.isArray(data) ? data : []))
@@ -52,25 +36,29 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
     setSaving(true);
     try {
       const statusObj = (statuses || []).find(s => s.Navn === newStatusNavn);
-      await hendelser.updateStatus(hendelse.id, statusObj?.Status_ID || newStatusNavn);
+      if (!statusObj) return;
+
+      // SENDER: hendelseId, statusId
+      await hendelser.updateStatus(hendelse.id, statusObj.Status_ID);
       onUpdated?.(); 
     } catch (err) {
-      alert("Feil: " + err.message);
+      alert("Kunne ikke oppdatere status: " + err.message);
     } finally {
       setSaving(false);
     }
   }
 
   async function handleAddComment() {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() || !brukerId) return;
     setSaving(true);
     try {
-      await kommentarer.create(hendelse.id, newComment);
+      // SENDER: hendelseId, brukerId, tekst
+      await kommentarer.create(hendelse.id, brukerId, newComment);
       const updated = await kommentarer.getByHendelse(hendelse.id);
       setComments(Array.isArray(updated) ? updated : []);
       setNewComment('');
     } catch (err) {
-      alert(err.message);
+      alert("Feil ved lagring av kommentar: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -79,7 +67,7 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
   return (
     <div className={styles.detailPanel}>
       <div className={styles.detailHeader}>
-        <h2>Detaljer</h2>
+        <h2>Behandle hendelse</h2>
         <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
       </div>
 
@@ -100,21 +88,21 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
 
         <div className={styles.detailSection}>
           <label>Beskrivelse</label>
-          <p className={styles.descBox}>{hendelse.beskrivelse || 'Ingen beskrivelse.'}</p>
+          <div className={styles.descBox}>{hendelse.beskrivelse}</div>
         </div>
 
         <hr className="divider" />
 
         <div className={styles.detailSection}>
-          <h3>Kommentarer</h3>
+          <h3>Kommentarlogg</h3>
           <div className={styles.commentsList}>
             {loadingComments ? <span>Laster...</span> : comments.map(c => (
-              <div key={c.id} className={styles.comment}>
+              <div key={c.id || c.Kommentar_ID} className={styles.comment}>
                 <div className={styles.commentMeta}>
-                  <strong>{c.brukernavn || 'System'}</strong>
-                  <span>{new Date(c.tidspunkt).toLocaleString('nb-NO')}</span>
+                  <strong>{c.brukernavn || c.DisplayName}</strong>
+                  <span>{new Date(c.tidspunkt || c.Tidspunkt).toLocaleString('nb-NO')}</span>
                 </div>
-                <p>{c.tekst}</p>
+                <p>{c.tekst || c.Innhold}</p>
               </div>
             ))}
           </div>
@@ -123,9 +111,13 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
               className="textarea" 
               value={newComment} 
               onChange={e => setNewComment(e.target.value)} 
-              placeholder="Skriv kommentar..."
+              placeholder="Skriv en oppdatering..."
             />
-            <button className="btn btn-primary" onClick={handleAddComment} disabled={saving}>Send</button>
+            <button 
+              className="btn btn-primary" 
+              onClick={handleAddComment} 
+              disabled={saving || !newComment.trim()}
+            >Send</button>
           </div>
         </div>
       </div>
@@ -150,7 +142,6 @@ export default function ManagementPage({ initialId, onClearInitial }) {
       setHendelserList(normalized);
       setStatuses(s?.statuser || []);
 
-      // Åpne initialId hvis den finnes
       if (initialId) {
         const found = normalized.find(item => item.id === initialId);
         if (found) setSelectedHendelse(found);
@@ -168,7 +159,7 @@ export default function ManagementPage({ initialId, onClearInitial }) {
 
   const handleClose = () => {
     setSelectedHendelse(null);
-    onClearInitial?.(); // Nullstill ID-en i App.jsx slik at den ikke åpnes igjen neste gang
+    onClearInitial?.();
   };
 
   const filtered = hendelserList.filter(h =>
@@ -178,9 +169,7 @@ export default function ManagementPage({ initialId, onClearInitial }) {
   return (
     <div className={styles.management}>
       <div className={styles.listPanel}>
-        <div className="page-header">
-          <h1>Hendelsestyring</h1>
-        </div>
+        <div className="page-header"><h1>Hendelsestyring</h1></div>
         <input
           className="input"
           placeholder="Søk..."
@@ -188,18 +177,20 @@ export default function ManagementPage({ initialId, onClearInitial }) {
           onChange={e => setSearchTerm(e.target.value)}
           style={{ marginBottom: '1rem' }}
         />
-        {loading ? <span className="spinner" /> : (
-          <div className={styles.hendelserGrid}>
-            {filtered.map(h => (
-              <HendelseCard
-                key={h.id}
-                hendelse={h}
-                onSelect={setSelectedHendelse}
-                isActive={selectedHendelse?.id === h.id}
-              />
-            ))}
-          </div>
-        )}
+        <div className={styles.hendelserGrid}>
+          {filtered.map(h => (
+            <div 
+              key={h.id} 
+              className={`card ${styles.hendelseCard} ${selectedHendelse?.id === h.id ? styles.activeCard : ''}`}
+              onClick={() => setSelectedHendelse(h)}
+            >
+              <div className={styles.hendelseHeader}>
+                <h3>{h.tittel}</h3>
+                <span className="badge">{h.status}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {selectedHendelse && (
@@ -207,7 +198,15 @@ export default function ManagementPage({ initialId, onClearInitial }) {
           hendelse={selectedHendelse}
           statuses={statuses}
           onClose={handleClose}
-          onUpdated={fetchData}
+          onUpdated={() => {
+            fetchData().then(() => {
+              // Oppdater det åpne panelet med ny info
+              hendelser.getAll().then(res => {
+                const found = res.find(item => (item.Hendelse_ID || item.id) === selectedHendelse.id);
+                if (found) setSelectedHendelse(normalizeHendelse(found));
+              });
+            });
+          }}
         />
       )}
     </div>

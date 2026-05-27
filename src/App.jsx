@@ -16,8 +16,7 @@ function getRole(user) {
 }
 
 function isAdmin(user) {
-  const r = getRole(user);
-  return r === 'admin';
+  return getRole(user) === 'admin';
 }
 
 function isManagement(user) {
@@ -46,23 +45,20 @@ export default function App() {
   const admin = isAdmin(user);
   const management = isManagement(user);
 
+  const handleSelectFromOversikt = (id) => {
+    setSelectedHendelseId(id);
+    setPage('management');
+  };
+
   const nav = [
     { key: 'hendelser', label: 'Oversikt' },
     management && { key: 'management', label: 'Hendelsestyring' },
     admin && { key: 'admin', label: 'Admin' },
   ].filter(Boolean);
 
-  const roleBadgeLabel = getRole(user);
-
-  // Navigasjonsfunksjon som brukes fra oversikten
-  const handleSelectFromOversikt = (id) => {
-    setSelectedHendelseId(id);
-    setPage('management');
-  };
-
   return (
     <div className="app-container">
-      <header className={page === 'login' ? 'hide' : ''} style={{
+      <header style={{
         display: 'flex', alignItems: 'center', gap: '2rem', padding: '1rem 2rem',
         borderBottom: '1px solid var(--c-border)', backgroundColor: '#fff'
       }}>
@@ -77,11 +73,7 @@ export default function App() {
                 if (key !== 'management') setSelectedHendelseId(null);
               }}
               className="btn btn-ghost btn-sm"
-              style={{
-                color: page === key ? 'var(--c-primary)' : 'var(--c-text-2)',
-                fontWeight: page === key ? 500 : 400,
-                cursor: 'pointer',
-              }}
+              style={{ color: page === key ? 'var(--c-primary)' : 'var(--c-text-2)' }}
             >
               {label}
             </button>
@@ -89,14 +81,6 @@ export default function App() {
         </nav>
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {roleBadgeLabel && (
-            <span style={{
-              fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase',
-              letterSpacing: '0.07em', color: 'var(--c-accent)',
-              border: '1px solid currentColor', borderRadius: '20px',
-              padding: '0.1rem 0.5rem',
-            }}>{roleBadgeLabel}</span>
-          )}
           <span style={{ fontSize: '0.8rem', color: 'var(--c-muted)' }}>{user.brukernavn}</span>
           <button className="btn btn-ghost btn-sm" onClick={handleLogout}>Logg ut</button>
         </div>
