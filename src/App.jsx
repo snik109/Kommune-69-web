@@ -63,7 +63,7 @@ export default function App() {
         display: 'flex', alignItems: 'center', gap: '2rem', padding: '1rem 2rem',
         borderBottom: '1px solid var(--c-border)', backgroundColor: '#fff'
       }}>
-        <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--c-primary)' }}>SIKKERHET</div>
+        <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--c-primary)' }}>Kommune69 Hendelser</div>
         
         <nav style={{ display: 'flex', gap: '1rem' }}>
           {nav.map(({ key, label }) => (
