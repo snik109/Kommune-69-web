@@ -219,6 +219,21 @@ function RollerPanel({ roles, setRoles, loading }) {
     }
   }
 
+  async function handleGetAll() {
+    setSaving(true);
+    setError('');
+    try {
+      const all = await roller.getAll();
+      setRoles(Array.isArray(all) ? all : []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  handleGetAll(); // Fetch all roles on mount
+
   return (
     <div className={`card ${styles.panelCard}`}>
       <h3 className={styles.panelTitle}>Roller</h3>
