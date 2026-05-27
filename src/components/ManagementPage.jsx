@@ -2,39 +2,49 @@ import { useState, useEffect, useCallback } from 'react';
 import { hendelser, kommentarer, lookup } from '../services/api';
 import styles from '../styles/ManagementPage.module.css';
 
+// Mapper SQL-resultater (PascalCase) til frontend (camelCase)
 function normalizeHendelse(raw) {
-  if (!raw) return null;
+  if (!raw) return raw;
   return {
     id: raw.Hendelse_ID ?? raw.id,
     tittel: raw.Tittel ?? raw.tittel ?? '',
     beskrivelse: raw.Beskrivelse ?? raw.beskrivelse ?? '',
     status: raw.StatusNavn ?? raw.status ?? '',
-    statusId: raw.Status_ID ?? raw.statusId,
+    prioritering: raw.PrioriteringNavn ?? raw.prioritering ?? '',
+    ansvarlig: raw.AnsvarligNavn ?? raw.ansvarlig ?? '',
+    tidspunkt_opprettet: raw.Tidspunkt_Opprettet ?? raw.tidspunkt_opprettet ?? new Date().toISOString(),
   };
 }
 
 function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
+  const [loadingComments, setLoadingComments] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Henter brukerId fra lagret session
+  // Henter innlogget bruker for kommentar-ID
   const currentUser = JSON.parse(localStorage.getItem('user'));
-  const brukerId = currentUser?.Bruker_ID || currentUser?.id;
+  const brukerId = currentUser?.id || currentUser?.Bruker_ID;
 
   useEffect(() => {
-    kommentarer.getByHendelse(hendelse.id).then(res => setComments(Array.isArray(res) ? res : []));
+    setLoadingComments(true);
+    kommentarer.getByHendelse(hendelse.id)
+      .then(data => setComments(Array.isArray(data) ? data : []))
+      .catch(() => setComments([]))
+      .finally(() => setLoadingComments(false));
   }, [hendelse.id]);
 
-  async function handleStatusChange(newStatusId) {
-    if (!newStatusId) return;
+  async function handleStatusChange(newStatusNavn) {
+    const statusObj = (statuses || []).find(s => s.Navn === newStatusNavn);
+    if (!statusObj) return;
+
     setSaving(true);
     try {
-      // API FORVENTER PRESIST: hendelseId, statusId
-      await hendelser.updateStatus(hendelse.id, parseInt(newStatusId));
-      onUpdated();
+      // PRESIST SOM FOREVENTET: { hendelseId, statusId }
+      await hendelser.updateStatus(hendelse.id, statusObj.Status_ID);
+      onUpdated?.(); 
     } catch (err) {
-      alert("Feil ved statusoppdatering");
+      alert("Feil ved statusoppdatering: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -42,15 +52,17 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
 
   async function handleAddComment() {
     if (!newComment.trim() || !brukerId) return;
+    
     setSaving(true);
     try {
-      // API FORVENTER PRESIST: hendelseId, brukerId, tekst
+      // PRESIST SOM FORVENTET: { hendelseId, brukerId, tekst }
       await kommentarer.create(hendelse.id, brukerId, newComment);
-      setNewComment('');
+      
       const updated = await kommentarer.getByHendelse(hendelse.id);
-      setComments(updated);
+      setComments(Array.isArray(updated) ? updated : []);
+      setNewComment('');
     } catch (err) {
-      alert("Feil ved lagring av kommentar");
+      alert("Kunne ikke lagre kommentar: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -59,47 +71,63 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
   return (
     <div className={styles.detailPanel}>
       <div className={styles.detailHeader}>
-        <h3>{hendelse.tittel}</h3>
-        <button onClick={onClose}>✕</button>
+        <h2>Behandle hendelse</h2>
+        <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
       </div>
 
       <div className={styles.detailContent}>
-        <div className="field">
+        <div className={styles.detailSection}>
           <label>Status</label>
           <select 
             className="select" 
-            value={hendelse.statusId || ''} 
+            value={hendelse.status} 
             onChange={e => handleStatusChange(e.target.value)}
             disabled={saving}
           >
-            {statuses.map(s => (
-              <option key={s.Status_ID} value={s.Status_ID}>{s.Navn}</option>
+            {(statuses || []).map(s => (
+              <option key={s.Status_ID} value={s.Navn}>{s.Navn}</option>
             ))}
           </select>
         </div>
 
-        <div className="field">
+        <div className={styles.detailSection}>
           <label>Beskrivelse</label>
-          <p className={styles.descBox}>{hendelse.beskrivelse}</p>
+          <div className={styles.descBox}>{hendelse.beskrivelse}</div>
         </div>
 
-        <div className={styles.commentSection}>
-          <h4>Kommentarer</h4>
+        <hr className="divider" />
+
+        <div className={styles.detailSection}>
+          <h3>Kommentarlogg</h3>
           <div className={styles.commentsList}>
-            {comments.map(c => (
-              <div key={c.Kommentar_ID || c.id} className={styles.comment}>
-                <strong>{c.DisplayName || c.brukernavn}: </strong>
-                <span>{c.Tekst || c.tekst}</span>
+            {loadingComments ? (
+              <span>Laster...</span>
+            ) : comments.map(c => (
+              <div key={c.id || c.Kommentar_ID} className={styles.comment}>
+                <div className={styles.commentMeta}>
+                  <strong>{c.brukernavn || c.DisplayName || 'Ukjent'}</strong>
+                  <span>{new Date(c.tidspunkt || c.Tidspunkt).toLocaleString('nb-NO')}</span>
+                </div>
+                <p>{c.tekst || c.Innhold}</p>
               </div>
             ))}
           </div>
-          <textarea 
-            className="textarea"
-            value={newComment}
-            onChange={e => setNewComment(e.target.value)}
-            placeholder="Skriv tekst..."
-          />
-          <button className="btn btn-primary" onClick={handleAddComment} disabled={saving}>Send</button>
+          
+          <div className={styles.commentInputWrap}>
+            <textarea 
+              className="textarea" 
+              value={newComment} 
+              onChange={e => setNewComment(e.target.value)} 
+              placeholder="Skriv en oppdatering..."
+            />
+            <button 
+              className="btn btn-primary" 
+              onClick={handleAddComment} 
+              disabled={saving || !newComment.trim()}
+            >
+              {saving ? 'Lagrer...' : 'Send'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -107,50 +135,88 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
 }
 
 export default function ManagementPage({ initialId, onClearInitial }) {
-  const [items, setItems] = useState([]);
+  const [hendelserList, setHendelserList] = useState([]);
   const [statuses, setStatuses] = useState([]);
-  const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedHendelse, setSelectedHendelse] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const loadData = useCallback(async () => {
-    const [h, s] = await Promise.all([hendelser.getAll(), lookup.getStatuses()]);
-    const normalized = h.map(normalizeHendelse);
-    setItems(normalized);
-    setStatuses(s?.statuser || []);
+  const fetchData = useCallback(async () => {
+    try {
+      const [h, s] = await Promise.all([
+        hendelser.getAll(),
+        lookup.getStatuses(),
+      ]);
+      const normalized = Array.isArray(h) ? h.map(normalizeHendelse) : [];
+      setHendelserList(normalized);
+      setStatuses(s?.statuser || []);
 
-    if (initialId) {
-      const found = normalized.find(x => x.id === initialId);
-      if (found) setSelected(found);
+      // Autostart hvis vi kom fra Oversikt
+      if (initialId) {
+        const found = normalized.find(item => item.id === initialId);
+        if (found) setSelectedHendelse(found);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   }, [initialId]);
 
-  useEffect(() => { loadData().finally(() => setLoading(false)); }, [loadData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleClose = () => {
-    setSelected(null);
+    setSelectedHendelse(null);
     onClearInitial?.();
   };
+
+  const filtered = hendelserList.filter(h =>
+    h.tittel.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className={styles.management}>
       <div className={styles.listPanel}>
-        <h2>Hendelsestyring</h2>
+        <div className="page-header"><h1>Hendelsestyring</h1></div>
+        <input
+          className="input"
+          placeholder="Søk i titler..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          style={{ marginBottom: '1.5rem' }}
+        />
         <div className={styles.hendelserGrid}>
-          {items.map(h => (
-            <div key={h.id} className={`card ${selected?.id === h.id ? styles.active : ''}`} onClick={() => setSelected(h)}>
-              <strong>{h.tittel}</strong>
-              <span className="badge">{h.status}</span>
+          {filtered.map(h => (
+            <div 
+              key={h.id} 
+              className={`card ${styles.hendelseCard} ${selectedHendelse?.id === h.id ? styles.activeCard : ''}`}
+              onClick={() => setSelectedHendelse(h)}
+            >
+              <div className={styles.hendelseHeader}>
+                <h3>{h.tittel}</h3>
+                <span className="badge badge-neutral">{h.status}</span>
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      {selected && (
-        <DetailPanel 
-          hendelse={selected} 
-          statuses={statuses} 
-          onClose={handleClose} 
-          onUpdated={loadData} 
+      {selectedHendelse && (
+        <DetailPanel
+          hendelse={selectedHendelse}
+          statuses={statuses}
+          onClose={handleClose}
+          onUpdated={() => {
+            // Oppdaterer data og sørger for at panelet reflekterer ny status
+            fetchData().then(() => {
+               hendelser.getAll().then(res => {
+                const found = res.find(item => (item.Hendelse_ID || item.id) === selectedHendelse.id);
+                if (found) setSelectedHendelse(normalizeHendelse(found));
+              });
+            });
+          }}
         />
       )}
     </div>
