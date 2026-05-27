@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { brukere, roller, lookup, auth } from '../services/api';
 import styles from '../styles/AdminPage.module.css';
 
-// ─── Shared helpers ────────────────────────────────────────────
+// ─── Section wrapper ────────────────────────────────────────────
 
 function Section({ title, description, children }) {
   return (
@@ -18,7 +18,7 @@ function Section({ title, description, children }) {
   );
 }
 
-// ─── Register user modal ───────────────────────────────────────
+// ─── Register user modal ────────────────────────────────────────
 
 function RegisterModal({ roles, onClose, onCreated }) {
   const [form, setForm] = useState({ brukernavn: '', passord: '', epost: '', rolleId: '' });
@@ -53,22 +53,25 @@ function RegisterModal({ roles, onClose, onCreated }) {
           <div className="form-grid">
             <div className="field">
               <label>Brukernavn</label>
-              <input className="input" required value={form.brukernavn} onChange={e => set('brukernavn', e.target.value)} />
+              <input className="input" required value={form.brukernavn}
+                onChange={e => set('brukernavn', e.target.value)} />
             </div>
             <div className="field">
               <label>E-post</label>
-              <input className="input" type="email" value={form.epost} onChange={e => set('epost', e.target.value)} />
+              <input className="input" type="email" value={form.epost}
+                onChange={e => set('epost', e.target.value)} />
             </div>
           </div>
           <div className="field">
             <label>Passord</label>
-            <input className="input" type="password" required value={form.passord} onChange={e => set('passord', e.target.value)} />
+            <input className="input" type="password" required value={form.passord}
+              onChange={e => set('passord', e.target.value)} />
           </div>
           <div className="field">
             <label>Rolle</label>
             <select className="select" value={form.rolleId} onChange={e => set('rolleId', e.target.value)}>
               <option value="">Ingen rolle</option>
-              {(Array.isArray(roles) ? roles : []).map(r => <option key={r.id} value={r.id}>{r.navn}</option>)}
+              {roles.map(r => <option key={r.id} value={r.id}>{r.navn}</option>)}
             </select>
           </div>
           <div className="modal-footer">
@@ -83,7 +86,7 @@ function RegisterModal({ roles, onClose, onCreated }) {
   );
 }
 
-// ─── Edit user modal ───────────────────────────────────────────
+// ─── Edit user modal ────────────────────────────────────────────
 
 function EditUserModal({ user, allRoles, onClose, onSaved }) {
   const [form, setForm] = useState({ brukernavn: user.brukernavn || '', epost: user.epost || '' });
@@ -94,7 +97,7 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
 
   useEffect(() => {
     roller.getForUser(user.id)
-      .then(setUserRoles)
+      .then(data => setUserRoles(Array.isArray(data) ? data : []))
       .catch(() => setUserRoles([]))
       .finally(() => setLoadingRoles(false));
   }, [user.id]);
@@ -144,8 +147,8 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
           <div className="form-grid">
             <div className="field">
               <label>Brukernavn</label>
-              <input className="input" value={form.brukernavn}
-                onChange={e => setForm(f => ({ ...f, brukernavn: e.target.value }))} required />
+              <input className="input" required value={form.brukernavn}
+                onChange={e => setForm(f => ({ ...f, brukernavn: e.target.value }))} />
             </div>
             <div className="field">
               <label>E-post</label>
@@ -156,27 +159,28 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
           <hr className="divider" />
           <div className="field">
             <label>Roller</label>
-            {loadingRoles
-              ? <div className="loading-center" style={{ padding: '1rem' }}><span className="spinner" /></div>
-              : (
-                <div className={styles.roleGrid}>
-                  {(Array.isArray(allRoles) ? allRoles : []).map(role => {
-                    const active = assignedIds.has(role.id);
-                    return (
-                      <button
-                        key={role.id}
-                        type="button"
-                        className={`${styles.roleChip} ${active ? styles.roleChipActive : ''}`}
-                        onClick={() => toggleRole(role)}
-                        disabled={saving}
-                      >
-                        {active ? '✓ ' : ''}{role.navn}
-                      </button>
-                    );
-                  })}
-                </div>
-              )
-            }
+            {loadingRoles ? (
+              <div className="loading-center" style={{ padding: '1rem' }}><span className="spinner" /></div>
+            ) : allRoles.length === 0 ? (
+              <p style={{ fontSize: '0.875rem', color: 'var(--c-muted)' }}>Ingen roller tilgjengelig.</p>
+            ) : (
+              <div className={styles.roleGrid}>
+                {allRoles.map(role => {
+                  const active = assignedIds.has(role.id);
+                  return (
+                    <button
+                      key={role.id}
+                      type="button"
+                      className={`${styles.roleChip} ${active ? styles.roleChipActive : ''}`}
+                      onClick={() => toggleRole(role)}
+                      disabled={saving}
+                    >
+                      {active ? '✓ ' : ''}{role.navn}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Avbryt</button>
@@ -190,85 +194,122 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
   );
 }
 
-// ─── Lookup table editor ───────────────────────────────────────
+// ─── Roles panel ────────────────────────────────────────────────
+// Calls GET /roller (roller.getAll) and POST /roller (roller.create)
 
-function LookupTable({ label, items, loading, onAdd, onDelete }) {
+function RollerPanel({ roles, setRoles, loading }) {
   const [newNavn, setNewNavn] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   async function handleAdd(e) {
     e.preventDefault();
-    if (!newNavn.trim()) return;
+    const navn = newNavn.trim();
+    if (!navn) return;
     setSaving(true);
+    setError('');
     try {
-      await onAdd(newNavn.trim());
+      const created = await roller.create(navn);
+      setRoles(prev => [...prev, created]);
       setNewNavn('');
+    } catch (err) {
+      setError(err.message);
     } finally {
       setSaving(false);
     }
   }
 
-  const normalizedItems = Array.isArray(items) ? items : [];
-
   return (
-    <div className={styles.lookupTable}>
-      <h3 className={styles.lookupTitle}>{label}</h3>
+    <div className={`card ${styles.panelCard}`}>
+      <h3 className={styles.panelTitle}>Roller</h3>
+      <p className={styles.panelDesc}>
+        Roller brukes til tilgangsstyring og vises som valg ved brukerregistrering og redigering.
+      </p>
+
+      {error && <div className="alert alert-error" style={{ marginBottom: '0.75rem' }}>{error}</div>}
+
       {loading ? (
-        <div style={{ padding: '1rem 0' }}><span className="spinner" /></div>
-      ) : normalizedItems.length === 0 ? (
-        <p style={{ color: 'var(--c-muted)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>Ingen verdier ennå.</p>
+        <div style={{ padding: '0.75rem 0' }}><span className="spinner" /></div>
+      ) : roles.length === 0 ? (
+        <p style={{ color: 'var(--c-muted)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          Ingen roller opprettet ennå.
+        </p>
       ) : (
-        <div className={styles.lookupItems}>
-          {normalizedItems.map(item => (
-            <div key={item.id} className={styles.lookupItem}>
-              <span>{item.navn}</span>
-              {onDelete && (
-                <button
-                  className="btn btn-danger btn-sm"
-                  onClick={() => onDelete(item.id)}
-                >✕</button>
-              )}
+        <div className={styles.panelTable}>
+          {roles.map(r => (
+            <div key={r.id} className={styles.panelRow}>
+              <span className={styles.panelRowId}>#{r.id}</span>
+              <span className={styles.panelRowName}>{r.navn}</span>
             </div>
           ))}
         </div>
       )}
-      {onAdd && (
-        <form onSubmit={handleAdd} className={styles.lookupAddRow}>
-          <input
-            className="input"
-            placeholder={`Ny ${label.toLowerCase()}…`}
-            value={newNavn}
-            onChange={e => setNewNavn(e.target.value)}
-          />
-          <button className="btn btn-primary btn-sm" type="submit" disabled={saving}>
-            {saving ? <span className="spinner" /> : 'Legg til'}
-          </button>
-        </form>
-      )}
+
+      <form onSubmit={handleAdd} className={styles.addRow}>
+        <input
+          className="input"
+          placeholder="Rollenavn (f.eks. «saksbehandler»)…"
+          value={newNavn}
+          onChange={e => setNewNavn(e.target.value)}
+        />
+        <button className="btn btn-primary" type="submit" disabled={saving || !newNavn.trim()}>
+          {saving ? <span className="spinner" /> : 'Legg til'}
+        </button>
+      </form>
     </div>
   );
 }
 
-// ─── Main AdminPage ────────────────────────────────────────────
+// ─── Categories panel ───────────────────────────────────────────
+// GET /lookup/kategorier — read only (no standalone POST route on backend)
+
+function KategorierPanel({ categories, loading }) {
+  return (
+    <div className={`card ${styles.panelCard}`}>
+      <h3 className={styles.panelTitle}>Kategorier</h3>
+      <p className={styles.panelDesc}>
+        Kategorier er globale verdier som kan knyttes til hendelser av management-brukere.
+      </p>
+
+      {loading ? (
+        <div style={{ padding: '0.75rem 0' }}><span className="spinner" /></div>
+      ) : categories.length === 0 ? (
+        <p style={{ color: 'var(--c-muted)', fontSize: '0.875rem' }}>Ingen kategorier funnet.</p>
+      ) : (
+        <div className={styles.panelTable}>
+          {categories.map(k => (
+            <div key={k.id} className={styles.panelRow}>
+              <span className={styles.panelRowId}>#{k.id}</span>
+              <span className={styles.panelRowName}>{k.navn}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className={styles.panelNote}>
+        Kategorier opprettes via hendelsesdetaljsiden. Legg til POST /lookup/kategorier i backend for å opprette dem herfra.
+      </p>
+    </div>
+  );
+}
+
+// ─── Main ───────────────────────────────────────────────────────
 
 export default function AdminPage() {
-  const [users, setUsers] = useState(null);
-  const [roles, setRoles] = useState([]);
+  const [users, setUsers]           = useState(null);
+  const [roles, setRoles]           = useState([]);
   const [categories, setCategories] = useState([]);
-  const [editUser, setEditUser] = useState(null);
+  const [rolesLoading, setRolesLoading] = useState(true);
+  const [editUser, setEditUser]     = useState(null);
   const [showRegister, setShowRegister] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [lookupLoading, setLookupLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const safeRoles = Array.isArray(roles) ? roles : [];
-  const safeCategories = Array.isArray(categories) ? categories : [];
+  const [error, setError]           = useState('');
 
   useEffect(() => {
     Promise.all([
       brukere.getAll(),
-      roller.getAll(),
-      lookup.getCategories(),
+      roller.getAll(),       // GET /roller  — returns all unique roles
+      lookup.getCategories(), // GET /lookup/kategorier
     ])
       .then(([u, r, k]) => {
         setUsers(Array.isArray(u) ? u : []);
@@ -276,7 +317,7 @@ export default function AdminPage() {
         setCategories(Array.isArray(k) ? k : []);
       })
       .catch(err => setError(err.message))
-      .finally(() => setLookupLoading(false));
+      .finally(() => setRolesLoading(false));
   }, []);
 
   async function handleDeleteUser(id) {
@@ -289,24 +330,13 @@ export default function AdminPage() {
     }
   }
 
-  async function handleLookupAdd(setter, endpoint, navn) {
-    try {
-      const created = endpoint === 'category'
-        ? await lookup.createCategory({ navn })
-        : await lookup.createRole({ navn });
-      setter(prev => [...prev, created]);
-    } catch (err) {
-      alert(err.message);
-    }
-  }
-
   return (
     <div className="page">
       <div className="page-header">
         <div>
           <h1>Admin</h1>
           <p style={{ color: 'var(--c-muted)', fontSize: '0.875rem', marginTop: '0.2rem' }}>
-            Brukere, kategorier og roller
+            Kontoer, roller og kategorier
           </p>
         </div>
         <span className={styles.adminBadge}>Admin</span>
@@ -314,14 +344,15 @@ export default function AdminPage() {
 
       {error && <div className="alert alert-error" style={{ marginBottom: '1.25rem' }}>{error}</div>}
 
+      {/* ── Users ─────────────────────────────────────────── */}
       <Section
-        title="Brukere"
-        description="Opprett, rediger og slett brukerkontoer og tilordne roller."
+        title="Kontoer"
+        description="Opprett, rediger og slett brukerkontoer. Tildel roller fra redigeringsmodalen."
       >
         <div className="card" style={{ padding: 0 }}>
           <div className={styles.tableToolbar}>
             <span style={{ fontSize: '0.8rem', color: 'var(--c-muted)' }}>
-              {users ? `${users.length} brukere` : ''}
+              {users !== null ? `${users.length} brukere` : ''}
             </span>
             <button className="btn btn-primary btn-sm" onClick={() => setShowRegister(true)}>
               + Registrer bruker
@@ -382,23 +413,14 @@ export default function AdminPage() {
         </div>
       </Section>
 
+      {/* ── Roles + Categories ────────────────────────────── */}
       <Section
-        title="Statiske verdier"
-        description="Administrer roller og kategorier."
+        title="Roller og kategorier"
+        description="Legg til nye roller som kan tildeles brukere. Kategorier vises som de er registrert i systemet."
       >
-        <div className={styles.lookupGrid}>
-          <LookupTable
-            label="Kategorier"
-            items={categories}
-            loading={lookupLoading}
-            onAdd={navn => handleLookupAdd(setCategories, 'category', navn)}
-          />
-          <LookupTable
-            label="Roller"
-            items={roles}
-            loading={lookupLoading}
-            onAdd={navn => handleLookupAdd(setRoles, 'role', navn)}
-          />
+        <div className={styles.panelGrid}>
+          <RollerPanel roles={roles} setRoles={setRoles} loading={rolesLoading} />
+          <KategorierPanel categories={categories} loading={rolesLoading} />
         </div>
       </Section>
 

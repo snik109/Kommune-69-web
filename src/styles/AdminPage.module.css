@@ -17,14 +17,11 @@
 }
 
 .sectionHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
   margin-bottom: 0.75rem;
 }
 
 .sectionTitle {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -46,7 +43,7 @@
   border-bottom: 1px solid var(--c-border);
 }
 
-/* ── Role chips ───────────────────────────────────────────── */
+/* ── Role chips (in edit modal) ───────────────────────────── */
 .roleGrid {
   display: flex;
   flex-wrap: wrap;
@@ -65,7 +62,7 @@
   transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
 
-.roleChip:hover { background: var(--c-bg); }
+.roleChip:hover:not(:disabled) { background: var(--c-bg); }
 
 .roleChipActive {
   background: var(--c-accent);
@@ -74,63 +71,97 @@
   font-weight: 500;
 }
 
-.roleChipActive:hover {
+.roleChipActive:hover:not(:disabled) {
   opacity: 0.85;
   background: var(--c-accent);
 }
 
-/* ── Lookup grid ──────────────────────────────────────────── */
-.lookupGrid {
+/* ── Roles + Categories two-column grid ───────────────────── */
+.panelGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 1rem;
+  align-items: start;
 }
 
-@media (max-width: 700px) {
-  .lookupGrid { grid-template-columns: 1fr; }
+@media (max-width: 680px) {
+  .panelGrid { grid-template-columns: 1fr; }
 }
 
-.lookupTable {
-  background: var(--c-surface);
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-lg);
-  padding: 1.25rem;
-}
-
-.lookupTitle {
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--c-muted);
-  margin-bottom: 0.75rem;
-}
-
-.lookupItems {
+/* ── Individual panel card ────────────────────────────────── */
+.panelCard {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  margin-bottom: 0.75rem;
+  gap: 0;
 }
 
-.lookupItem {
+.panelTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.panelDesc {
+  font-size: 0.8rem;
+  color: var(--c-muted);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+/* ── Row list inside panel ────────────────────────────────── */
+.panelTable {
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.panelRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0.45rem 0.65rem;
-  background: var(--c-bg);
-  border-radius: var(--radius-sm);
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--c-border);
   font-size: 0.875rem;
 }
 
-.lookupAddRow {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+.panelRow:last-child {
+  border-bottom: none;
 }
 
-.lookupAddRow .input {
-  flex: 1;
-  font-size: 0.8rem;
-  padding: 0.4rem 0.6rem;
+.panelRow:nth-child(even) {
+  background: var(--c-bg);
+}
+
+.panelRowId {
+  font-size: 0.72rem;
+  color: var(--c-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 28px;
+}
+
+.panelRowName {
+  color: var(--c-text);
+  font-weight: 500;
+}
+
+/* ── Add row form ─────────────────────────────────────────── */
+.addRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.addRow .input { flex: 1; }
+
+/* ── Read-only note ───────────────────────────────────────── */
+.panelNote {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--c-muted);
+  line-height: 1.5;
+  padding: 0.6rem 0.75rem;
+  background: var(--c-bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--c-border);
 }
