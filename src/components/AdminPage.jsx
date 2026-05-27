@@ -493,7 +493,10 @@ function normalizeRole(raw) {
 function normalizeUser(raw) {
   if (!raw) return raw;
   return {
-    ...raw,
+    id: raw.Bruker_ID ?? raw.brukerId ?? raw.id,
+    brukernavn: raw.Username ?? raw.brukernavn ?? raw.username,
+    epost: raw.Email ?? raw.epost ?? raw.email ?? '',
+    fullName: raw.FullName ?? raw.fullName ?? raw.full_name ?? '',
     roller: Array.isArray(raw.roller) ? raw.roller.map(normalizeRole) : raw.roller,
   };
 }
