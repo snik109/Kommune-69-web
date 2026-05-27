@@ -32,7 +32,7 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
   const currentUser = JSON.parse(localStorage.getItem('user'));
   const innloggetBrukerId = currentUser?.Bruker_ID || currentUser?.id;
 
-  // Hent kommentarer og tiltak
+  // Henter kommentarer og tiltak når hendelse.id endres
   useEffect(() => {
     let isMounted = true;
     setLoadingDetails(true);
@@ -61,11 +61,11 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
   };
 
   const handlePriorityChange = async (val) => {
-    const obj = priorities.find(p => p.Navn === val);
-    if (!obj) return;
     setSaving(true);
     try {
-      await hendelser.updatePriority(hendelse.id, obj.Prioritering_ID);
+      // VIKTIG: Sender prioriteringId som et tall slik API-et krever
+      const pId = Number(val);
+      await hendelser.updatePriority(hendelse.id, pId);
       await onUpdated();
     } catch (err) { alert("Prioriteringsfeil: " + err.message); }
     finally { setSaving(false); }
@@ -74,8 +74,8 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
   const handleResponsibleChange = async (val) => {
     setSaving(true);
     try {
+      // Sender brukerId som tall (eller null hvis tom)
       const bId = val === "" ? null : Number(val);
-      // Pkt 1: Sender brukerId (ikke ansvarligId) til API-et
       await hendelser.updateResponsible(hendelse.id, bId);
       await onUpdated();
     } catch (err) { alert("Ansvarlig-feil: " + err.message); }
@@ -129,8 +129,17 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
 
           <div>
             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>PRIORITET</label>
-            <select className="select" value={hendelse.prioritering} onChange={e => handlePriorityChange(e.target.value)} disabled={saving}>
-              {priorities.map(p => <option key={p.Prioritering_ID} value={p.Navn}>{p.Navn}</option>)}
+            <select 
+              className="select" 
+              value={String(hendelse.prioriteringId)} 
+              onChange={e => handlePriorityChange(e.target.value)} 
+              disabled={saving}
+            >
+              {priorities.map(p => (
+                <option key={p.Prioritering_ID} value={String(p.Prioritering_ID)}>
+                  {p.Navn}
+                </option>
+              ))}
             </select>
           </div>
 
