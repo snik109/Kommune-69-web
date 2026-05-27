@@ -2,6 +2,21 @@ import { useState, useEffect } from 'react';
 import { hendelser, kommentarer, brukere, lookup } from '../services/api';
 import styles from '../styles/ManagementPage.module.css';
 
+// Normalize hendelse objects from backend
+function normalizeHendelse(raw) {
+  if (!raw) return raw;
+  return {
+    id: raw.Hendelse_ID ?? raw.hendelseId ?? raw.id,
+    tittel: raw.Tittel ?? raw.tittel ?? raw.title ?? '',
+    beskrivelse: raw.Beskrivelse ?? raw.beskrivelse ?? raw.description ?? '',
+    status: raw.Status ?? raw.status ?? '',
+    prioritering: raw.Prioritering ?? raw.prioritering ?? raw.priority ?? '',
+    ansvarlig: raw.Ansvarlig ?? raw.ansvarlig ?? raw.responsible ?? '',
+    tidspunkt_opprettet: raw.Tidspunkt_Opprettet ?? raw.tidspunkt_opprettet ?? raw.created_at ?? new Date().toISOString(),
+    ...raw, // preserve any other fields
+  };
+}
+
 function HendelseCard({ hendelse, onSelect }) {
   return (
     <div className={`card ${styles.hendelseCard}`} onClick={() => onSelect(hendelse)}>
@@ -29,7 +44,8 @@ function DetailPanel({ hendelse, users, statuses, onClose, onUpdated }) {
 
   useEffect(() => {
     kommentarer.getByHendelse(hendelse.id)
-      .then(setComments)
+      .then(data => setComments(Array.isArray(data) ? data : []))
+      .catch(() => setComments([]))
       .finally(() => setLoadingComments(false));
   }, [hendelse.id]);
 
@@ -39,7 +55,7 @@ function DetailPanel({ hendelse, users, statuses, onClose, onUpdated }) {
     try {
       await kommentarer.create(hendelse.id, newComment);
       const updated = await kommentarer.getByHendelse(hendelse.id);
-      setComments(updated);
+      setComments(Array.isArray(updated) ? updated : []);
       setNewComment('');
     } catch (err) {
       alert(err.message);
@@ -193,20 +209,26 @@ export default function ManagementPage() {
           brukere.getAll(),
           lookup.getStatuses?.() || Promise.resolve([]),
         ]);
-        setHendelserList(h || []);
-        setUsers(u || []);
-        setStatuses(s || []);
+        const hendelserNormalized = Array.isArray(h) ? h.map(normalizeHendelse) : [];
+        const usersNormalized = Array.isArray(u) ? u : [];
+        const statusesNormalized = Array.isArray(s) ? s : [];
+        setHendelserList(hendelserNormalized);
+        setUsers(usersNormalized);
+        setStatuses(statusesNormalized);
       } catch (err) {
         setError(err.message);
+        setHendelserList([]);
+        setUsers([]);
+        setStatuses([]);
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  const filtered = hendelserList.filter(h =>
-    h.tittel.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (h.beskrivelse && h.beskrivelse.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filtered = (Array.isArray(hendelserList) ? hendelserList : []).filter(h =>
+    (h.tittel || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (h.beskrivelse || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
