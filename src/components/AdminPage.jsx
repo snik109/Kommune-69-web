@@ -68,7 +68,7 @@ function RegisterModal({ roles, onClose, onCreated }) {
             <label>Rolle</label>
             <select className="select" value={form.rolleId} onChange={e => set('rolleId', e.target.value)}>
               <option value="">Ingen rolle</option>
-              {roles.map(r => <option key={r.id} value={r.id}>{r.navn}</option>)}
+              {(Array.isArray(roles) ? roles : []).map(r => <option key={r.id} value={r.id}>{r.navn}</option>)}
             </select>
           </div>
           <div className="modal-footer">
@@ -160,7 +160,7 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
               ? <div className="loading-center" style={{ padding: '1rem' }}><span className="spinner" /></div>
               : (
                 <div className={styles.roleGrid}>
-                  {allRoles.map(role => {
+                  {(Array.isArray(allRoles) ? allRoles : []).map(role => {
                     const active = assignedIds.has(role.id);
                     return (
                       <button
@@ -208,16 +208,18 @@ function LookupTable({ label, items, loading, onAdd, onDelete }) {
     }
   }
 
+  const normalizedItems = Array.isArray(items) ? items : [];
+
   return (
     <div className={styles.lookupTable}>
       <h3 className={styles.lookupTitle}>{label}</h3>
       {loading ? (
         <div style={{ padding: '1rem 0' }}><span className="spinner" /></div>
-      ) : items.length === 0 ? (
+      ) : normalizedItems.length === 0 ? (
         <p style={{ color: 'var(--c-muted)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>Ingen verdier ennå.</p>
       ) : (
         <div className={styles.lookupItems}>
-          {items.map(item => (
+          {normalizedItems.map(item => (
             <div key={item.id} className={styles.lookupItem}>
               <span>{item.navn}</span>
               {onDelete && (
@@ -259,6 +261,9 @@ export default function AdminPage() {
   const [lookupLoading, setLookupLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const safeRoles = Array.isArray(roles) ? roles : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
+
   useEffect(() => {
     Promise.all([
       brukere.getAll(),
@@ -266,9 +271,9 @@ export default function AdminPage() {
       lookup.getCategories(),
     ])
       .then(([u, r, k]) => {
-        setUsers(u);
-        setRoles(r);
-        setCategories(k);
+        setUsers(Array.isArray(u) ? u : []);
+        setRoles(Array.isArray(r) ? r : []);
+        setCategories(Array.isArray(k) ? k : []);
       })
       .catch(err => setError(err.message))
       .finally(() => setLookupLoading(false));
@@ -286,8 +291,10 @@ export default function AdminPage() {
 
   async function handleLookupAdd(setter, endpoint, navn) {
     try {
-      // Logic for backend communication goes here
-      alert(`Backend POST route needed to add "${navn}"`);
+      const created = endpoint === 'category'
+        ? await lookup.createCategory({ navn })
+        : await lookup.createRole({ navn });
+      setter(prev => [...prev, created]);
     } catch (err) {
       alert(err.message);
     }
@@ -384,13 +391,13 @@ export default function AdminPage() {
             label="Kategorier"
             items={categories}
             loading={lookupLoading}
-            onAdd={navn => handleLookupAdd(setCategories, null, navn)}
+            onAdd={navn => handleLookupAdd(setCategories, 'category', navn)}
           />
           <LookupTable
             label="Roller"
             items={roles}
             loading={lookupLoading}
-            onAdd={navn => handleLookupAdd(setRoles, null, navn)}
+            onAdd={navn => handleLookupAdd(setRoles, 'role', navn)}
           />
         </div>
       </Section>

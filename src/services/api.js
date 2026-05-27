@@ -109,8 +109,8 @@ export const lookup = {
   updateCategory: (id, data) => request(`/lookup/kategorier/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteCategory: (id) => request(`/lookup/kategorier/${id}`, { method: 'DELETE' }),
 
-  getRoles: () => request('/lookup/roller'),
-  createRole: (data) => request('/lookup/roller', { method: 'POST', body: JSON.stringify(data) }),
-  updateRole: (id, data) => request(`/lookup/roller/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteRole: (id) => request(`/lookup/roller/${id}`, { method: 'DELETE' }),
+  getRoles: () => request('/roller'),
+  createRole: (data) => request('/roller', { method: 'POST', body: JSON.stringify(data) }),
+  updateRole: (id, data) => request(`/roller/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteRole: (id) => request(`/roller/${id}`, { method: 'DELETE' }),
 };
