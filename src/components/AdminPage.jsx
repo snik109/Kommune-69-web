@@ -21,7 +21,7 @@ function Section({ title, description, children }) {
 // ─── Register user modal ────────────────────────────────────────
 
 function RegisterModal({ roles, onClose, onCreated }) {
-  const [form, setForm] = useState({ brukernavn: '', passord: '', epost: '', rolleId: '' });
+  const [form, setForm] = useState({ brukernavn: '', passord: '', epost: '', displayName: '', fullName: '', rolleId: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -32,7 +32,14 @@ function RegisterModal({ roles, onClose, onCreated }) {
     setLoading(true);
     setError('');
     try {
-      const user = await auth.register(form);
+      const payload = {
+        username: form.brukernavn,
+        password: form.passord,
+        email: form.epost,
+        displayName: form.displayName,
+        fullName: form.fullName,
+      };
+      const user = await auth.register(payload);
       onCreated(user);
     } catch (err) {
       setError(err.message);
@@ -62,6 +69,18 @@ function RegisterModal({ roles, onClose, onCreated }) {
                 onChange={e => set('epost', e.target.value)} />
             </div>
           </div>
+          <div className="form-grid">
+            <div className="field">
+              <label>Visningsnavn</label>
+              <input className="input" value={form.displayName}
+                onChange={e => set('displayName', e.target.value)} />
+            </div>
+            <div className="field">
+              <label>Fullt navn</label>
+              <input className="input" value={form.fullName}
+                onChange={e => set('fullName', e.target.value)} />
+            </div>
+          </div>
           <div className="field">
             <label>Passord</label>
             <input className="input" type="password" required value={form.passord}
@@ -89,7 +108,7 @@ function RegisterModal({ roles, onClose, onCreated }) {
 // ─── Edit user modal ────────────────────────────────────────────
 
 function EditUserModal({ user, allRoles, onClose, onSaved }) {
-  const [form, setForm] = useState({ brukernavn: user.brukernavn || '', epost: user.epost || '' });
+  const [form, setForm] = useState({ brukernavn: user.brukernavn || '', epost: user.epost || '', displayName: user.displayName || '', fullName: user.fullName || '' });
   const [userRoles, setUserRoles] = useState([]);
   const [loadingRoles, setLoadingRoles] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -135,7 +154,13 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
     setSaving(true);
     setError('');
     try {
-      const updated = await brukere.update(user.id, form);
+      const payload = {
+        username: form.brukernavn,
+        email: form.epost,
+        displayName: form.displayName,
+        fullName: form.fullName,
+      };
+      const updated = await brukere.update(user.id, payload);
       onSaved(updated ?? { ...user, ...form });
     } catch (err) {
       setError(err.message);
@@ -163,6 +188,18 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
               <label>E-post</label>
               <input className="input" type="email" value={form.epost}
                 onChange={e => setForm(f => ({ ...f, epost: e.target.value }))} />
+            </div>
+          </div>
+          <div className="form-grid">
+            <div className="field">
+              <label>Visningsnavn</label>
+              <input className="input" value={form.displayName}
+                onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} />
+            </div>
+            <div className="field">
+              <label>Fullt navn</label>
+              <input className="input" value={form.fullName}
+                onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} />
             </div>
           </div>
           <hr className="divider" />
@@ -460,7 +497,7 @@ export default function AdminPage() {
         <RegisterModal
           roles={roles}
           onClose={() => setShowRegister(false)}
-          onCreated={u => { setUsers(prev => [...prev, u]); setShowRegister(false); }}
+          onCreated={u => { setUsers(prev => [...prev, normalizeUser(u)]); setShowRegister(false); }}
         />
       )}
 
@@ -470,7 +507,8 @@ export default function AdminPage() {
           allRoles={roles}
           onClose={() => setEditUser(null)}
           onSaved={updated => {
-            setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+            const normalized = normalizeUser(updated);
+            setUsers(prev => prev.map(u => u.id === normalized.id ? normalized : u));
             setEditUser(null);
           }}
         />
@@ -496,6 +534,7 @@ function normalizeUser(raw) {
     id: raw.Bruker_ID ?? raw.brukerId ?? raw.id,
     brukernavn: raw.Username ?? raw.brukernavn ?? raw.username,
     epost: raw.Email ?? raw.epost ?? raw.email ?? '',
+    displayName: raw.DisplayName ?? raw.displayName ?? raw.display_name ?? '',
     fullName: raw.FullName ?? raw.fullName ?? raw.full_name ?? '',
     roller: Array.isArray(raw.roller) ? raw.roller.map(normalizeRole) : raw.roller,
   };
