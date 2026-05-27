@@ -99,10 +99,16 @@ export const kommentarer = {
 
 // --- Tiltak ---
 export const tiltak = {
-  getByHendelse: (hendelseId) => request(`/tiltak/${hendelseId}/tiltak`),
-  add: (hendelseId, data) =>
-    request(`/tiltak/${hendelseId}/tiltak`, { method: 'POST', body: JSON.stringify(data) }),
-  delete: (id) => request(`/tiltak/${id}`, { method: 'DELETE' }),
+  // Henter alle tiltak knyttet til en spesifikk hendelse
+  getByHendelse: (hendelseId) => 
+    request(`/tiltak/${hendelseId}/tiltak`),
+
+  // Oppretter et nytt tiltak
+  create: (hendelseId, beskrivelse) =>
+    request(`/tiltak/${hendelseId}/tiltak`, { 
+      method: 'POST', 
+      body: JSON.stringify({ beskrivelse }) 
+    }),
 };
 
 // --- Lookup ---
