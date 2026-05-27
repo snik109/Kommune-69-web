@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { brukere, roller, lookup, auth } from '../services/api';
 import styles from '../styles/AdminPage.module.css';
 
@@ -219,7 +219,7 @@ function RollerPanel({ roles, setRoles, loading }) {
     }
   }
 
-  async function handleGetAll() {
+  const handleGetAll = useCallback(async () => {
     setSaving(true);
     setError('');
     try {
@@ -230,9 +230,11 @@ function RollerPanel({ roles, setRoles, loading }) {
     } finally {
       setSaving(false);
     }
-  }
+  }, [setRoles]);
 
-  handleGetAll(); // Fetch all roles on mount
+  useEffect(() => {
+    handleGetAll();
+  }, [handleGetAll]);
 
   return (
     <div className={`card ${styles.panelCard}`}>
