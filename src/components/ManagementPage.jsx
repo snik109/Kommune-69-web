@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { hendelser, kommentarer, lookup, tiltak, brukere } from '../services/api';
 import styles from '../styles/ManagementPage.module.css';
 
-// Mapper SQL-resultater (PascalCase) til frontend (camelCase)
+/**
+ * Mapper databasefelt (PascalCase) til frontend-felt (camelCase)
+ */
 function normalizeHendelse(raw) {
   if (!raw) return raw;
   return {
@@ -30,9 +32,11 @@ function DetailPanel({ hendelse, statuses = [], users = [], onClose, onUpdated }
   const currentUser = JSON.parse(localStorage.getItem('user'));
   const innloggetBrukerId = currentUser?.Bruker_ID || currentUser?.id;
 
+  // Hent kommentarer og tiltak når hendelseId endres
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
+    
     Promise.all([
       kommentarer.getByHendelse(hendelse.id).catch(() => []),
       tiltak.getByHendelse(hendelse.id).catch(() => [])
@@ -43,10 +47,11 @@ function DetailPanel({ hendelse, statuses = [], users = [], onClose, onUpdated }
         setLoading(false);
       }
     });
+
     return () => { isMounted = false; };
   }, [hendelse.id]);
 
-  async function handleStatusChange(newStatusNavn) {
+  const handleStatusChange = async (newStatusNavn) => {
     const statusObj = statuses.find(s => s.Navn === newStatusNavn);
     if (!statusObj) return;
     setSaving(true);
@@ -58,20 +63,50 @@ function DetailPanel({ hendelse, statuses = [], users = [], onClose, onUpdated }
     } finally {
       setSaving(false);
     }
-  }
+  };
 
-  async function handleResponsibleChange(valgtBrukerId) {
+  const handleResponsibleChange = async (valgtBrukerId) => {
     setSaving(true);
     try {
-      // Sender { ansvarligId } som backend forventer
-      await hendelser.updateResponsible(hendelse.id, valgtBrukerId);
+      // Bruker din spesifikke rute som krever { ansvarligId }
+      await hendelser.updateResponsible(hendelse.id, valgtBrukerId || null);
       onUpdated();
     } catch (err) {
       alert("Kunne ikke endre ansvarlig: " + err.message);
     } finally {
       setSaving(false);
     }
-  }
+  };
+
+  const handleAddAction = async () => {
+    if (!newAction.trim()) return;
+    setSaving(true);
+    try {
+      await tiltak.create(hendelse.id, newAction);
+      const updated = await tiltak.getByHendelse(hendelse.id);
+      setActions(Array.isArray(updated) ? updated : []);
+      setNewAction('');
+    } catch (err) {
+      alert("Feil ved lagring av tiltak: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !innloggetBrukerId) return;
+    setSaving(true);
+    try {
+      await kommentarer.create(hendelse.id, innloggetBrukerId, newComment);
+      const updated = await kommentarer.getByHendelse(hendelse.id);
+      setComments(Array.isArray(updated) ? updated : []);
+      setNewComment('');
+    } catch (err) {
+      alert("Feil ved lagring av kommentar: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className={styles.detailPanel}>
@@ -101,7 +136,6 @@ function DetailPanel({ hendelse, statuses = [], users = [], onClose, onUpdated }
             >
               <option value="">-- Velg ansvarlig --</option>
               {users.map(u => {
-                // Sjekker både Bruker_ID og id siden backenden din returnerer Bruker_ID
                 const uid = u.Bruker_ID ?? u.id;
                 return (
                   <option key={uid} value={uid}>
@@ -112,7 +146,42 @@ function DetailPanel({ hendelse, statuses = [], users = [], onClose, onUpdated }
             </select>
           </div>
         </div>
-        {/* ... Resten av koden (tiltak/kommentarer) ... */}
+
+        <hr className="divider" />
+
+        <div className={styles.detailSection}>
+          <h3>Utførte Tiltak</h3>
+          <div className={styles.actionsList}>
+            {loading ? <small>Laster...</small> : actions.length === 0 ? <p className={styles.emptyMsg}>Ingen tiltak registrert.</p> :
+              actions.map(a => (
+                <div key={a.Tiltak_ID} className={styles.actionItem} style={{ marginBottom: '0.5rem', padding: '0.75rem', background: '#f8f9fa', borderLeft: '3px solid var(--c-primary)' }}>
+                  <p style={{ margin: 0, fontSize: '0.9rem' }}>{a.Beskrivelse}</p>
+                  <small style={{ color: '#666' }}>{a.UtførtAvNavn} • {new Date(a.Tidspunkt).toLocaleString('nb-NO')}</small>
+                </div>
+              ))
+            }
+          </div>
+          <div className={styles.actionInputWrap} style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+            <input className="input" placeholder="Nytt tiltak..." value={newAction} onChange={e => setNewAction(e.target.value)} />
+            <button className="btn btn-primary btn-sm" onClick={handleAddAction} disabled={saving || !newAction.trim()}>Legg til</button>
+          </div>
+        </div>
+
+        <div className={styles.detailSection}>
+          <h3>Kommentarlogg</h3>
+          <div className={styles.commentsList} style={{ maxHeight: '250px', overflowY: 'auto' }}>
+            {comments.map(c => (
+              <div key={c.Kommentar_ID} className={styles.comment} style={{ marginBottom: '0.5rem', padding: '0.5rem', background: '#f1f3f5', borderRadius: '4px' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{c.DisplayName}</div>
+                <p style={{ margin: 0, fontSize: '0.85rem' }}>{c.Tekst}</p>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <textarea className="textarea" value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Skriv en kommentar..." rows="2" />
+            <button className="btn btn-primary btn-sm" onClick={handleAddComment} disabled={saving || !newComment.trim()}>Send</button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -133,9 +202,10 @@ export default function ManagementPage({ initialId, onClearInitial }) {
         lookup.getStatuses(),
         brukere.getAll()
       ]);
+      
       const normalized = Array.isArray(h) ? h.map(normalizeHendelse) : [];
       
-      // Sortering
+      // Sortering: Åpen/Behandles først, deretter prioritering
       const order = { 'åpen': 1, 'under behandling': 2, 'løst': 3, 'lukket': 4 };
       const sorted = normalized.sort((a, b) => {
         const aVal = order[a.status.toLowerCase()] || 99;
@@ -148,11 +218,11 @@ export default function ManagementPage({ initialId, onClearInitial }) {
       setStatuses(s?.statuser || []);
       setUsers(Array.isArray(u) ? u : []);
     } catch (err) {
-      console.error(err);
+      console.error("Management fetchData error:", err);
     } finally {
       setLoading(false);
     }
-  }, []); // Viktig: Tom array her stopper API-spamming
+  }, []); // Viktig: Tom array forhindrer evig loop/spamming
 
   useEffect(() => {
     fetchData();
@@ -161,31 +231,38 @@ export default function ManagementPage({ initialId, onClearInitial }) {
   const selectedHendelse = hendelserList.find(h => h.id === selectedHendelseId);
   const filtered = hendelserList.filter(h => h.tittel.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  if (loading && !selectedHendelse) return <div className="loading-center"><span className="spinner" /></div>;
+  if (loading && !selectedHendelseId) return <div className="loading-center">Laster...</div>;
 
   return (
     <div className={`${styles.management} ${selectedHendelse ? styles.withDetail : ''}`}>
       <div className={styles.listPanel}>
-        <h1>Hendelsestyring</h1>
+        <div className="page-header">
+          <h1>Hendelsestyring</h1>
+        </div>
+
         <input 
           className="input" 
-          placeholder="Søk..." 
+          placeholder="Søk i titler..." 
           value={searchTerm} 
           onChange={e => setSearchTerm(e.target.value)} 
-          style={{marginBottom: '1rem', width: '300px'}}
+          style={{ marginBottom: '1.5rem', maxWidth: '400px' }}
         />
+        
         <div className={styles.hendelserGrid}>
           {filtered.map(h => (
             <div 
               key={h.id} 
               className={`card ${styles.hendelseCard} ${selectedHendelseId === h.id ? styles.activeCard : ''}`}
               onClick={() => setSelectedHendelseId(h.id)}
+              style={{ padding: '1rem', border: '1px solid var(--c-border)', borderRadius: '8px', cursor: 'pointer', marginBottom: '0.75rem' }}
             >
-              <div className={styles.hendelseHeader}>
-                <h3>{h.tittel}</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem' }}>{h.tittel}</h3>
                 <span className="badge badge-neutral">{h.status}</span>
               </div>
-              <small>Ansvarlig: {h.ansvarlig || 'Ingen'}</small>
+              <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#666' }}>
+                Ansvarlig: <strong>{h.ansvarlig || 'Ikke tildelt'}</strong>
+              </div>
             </div>
           ))}
         </div>
