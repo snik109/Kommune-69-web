@@ -2,13 +2,7 @@ const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:3868/api/v1.
 console.log('API Base URL:', BASE_URL);
 
 function getToken() {
-  const token = localStorage.getItem('token');
-  console.log('[getToken] Retrieving from localStorage:', {
-    token: token ? `${token.substring(0, 20)}...` : 'NULL/UNDEFINED',
-    allStorageKeys: Object.keys(localStorage),
-    fullStorage: { token: localStorage.getItem('token'), user: localStorage.getItem('user') }
-  });
-  return token;
+  return localStorage.getItem('token');
 }
 
 async function request(path, options = {}) {
@@ -19,16 +13,10 @@ async function request(path, options = {}) {
     ...options.headers,
   };
 
-  console.log(`[API] ${options.method || 'GET'} ${BASE_URL}${path}`, { 
-    token: token ? `${token.substring(0, 20)}...` : 'NO TOKEN',
-    headers 
-  });
-
   const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }));
-    console.error(`[API] Error: ${res.status} ${res.statusText}`, error);
     throw new Error(error.message || 'Request failed');
   }
 
@@ -38,18 +26,8 @@ async function request(path, options = {}) {
 
 // --- Auth ---
 export const auth = {
-  login: async (brukernavn, passord) => {
-    console.log('[LOGIN] Attempting login with:', { brukernavn, passord });
-    const result = await request('/brukere/login', { 
-      method: 'POST', 
-      body: JSON.stringify({ username: brukernavn, password: passord }) 
-    });
-    console.log('[LOGIN] Response received:', result);
-    console.log('[LOGIN] Response keys:', Object.keys(result));
-    console.log('[LOGIN] Token field:', result.token);
-    console.log('[LOGIN] All fields:', JSON.stringify(result, null, 2));
-    return result;
-  },
+  login: (brukernavn, passord) =>
+    request('/brukere/login', { method: 'POST', body: JSON.stringify({ username: brukernavn, password: passord }) }),
   logout: () =>
     request('/brukere/logout', { method: 'POST' }),
   register: (data) => {
@@ -117,7 +95,22 @@ export const tiltak = {
 // --- Lookup ---
 export const lookup = {
   getStatuses: () => request('/lookup/statuser'),
+  createStatus: (data) => request('/lookup/statuser', { method: 'POST', body: JSON.stringify(data) }),
+  updateStatus: (id, data) => request(`/lookup/statuser/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteStatus: (id) => request(`/lookup/statuser/${id}`, { method: 'DELETE' }),
+
   getPriorities: () => request('/lookup/prioriteringer'),
+  createPriority: (data) => request('/lookup/prioriteringer', { method: 'POST', body: JSON.stringify(data) }),
+  updatePriority: (id, data) => request(`/lookup/prioriteringer/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deletePriority: (id) => request(`/lookup/prioriteringer/${id}`, { method: 'DELETE' }),
+
   getCategories: () => request('/lookup/kategorier'),
+  createCategory: (data) => request('/lookup/kategorier', { method: 'POST', body: JSON.stringify(data) }),
+  updateCategory: (id, data) => request(`/lookup/kategorier/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteCategory: (id) => request(`/lookup/kategorier/${id}`, { method: 'DELETE' }),
+
   getRoles: () => request('/lookup/roller'),
+  createRole: (data) => request('/lookup/roller', { method: 'POST', body: JSON.stringify(data) }),
+  updateRole: (id, data) => request(`/lookup/roller/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteRole: (id) => request(`/lookup/roller/${id}`, { method: 'DELETE' }),
 };
