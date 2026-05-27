@@ -243,6 +243,12 @@ function RollerPanel({ roles, setRoles, loading }) {
         Roller brukes til tilgangsstyring og vises som valg ved brukerregistrering og redigering.
       </p>
 
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+        <button className="btn btn-ghost btn-sm" onClick={handleGetAll} disabled={saving || loading}>
+          Oppdater
+        </button>
+      </div>
+
       {error && <div className="alert alert-error" style={{ marginBottom: '0.75rem' }}>{error}</div>}
 
       {loading ? (
