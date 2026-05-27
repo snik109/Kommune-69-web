@@ -1,0 +1,20 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.count {
+  font-size: 0.8rem;
+  color: var(--c-muted);
+}
+
+.tittel {
+  font-weight: 500;
+}
+
+.row:hover .tittel {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
