@@ -97,7 +97,16 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
 
   useEffect(() => {
     roller.getForUser(user.id)
-      .then(data => setUserRoles(Array.isArray(data) ? data : []))
+      .then(data => {
+        const mapped = Array.isArray(data) ? data.map(d => {
+          const norm = normalizeRole(d);
+          // preserve backend role id mapping if present
+          if (d.Rolle_ID != null) norm.rolleId = d.Rolle_ID;
+          if (d.rolleId != null) norm.rolleId = d.rolleId;
+          return norm;
+        }) : [];
+        setUserRoles(mapped);
+      })
       .catch(() => setUserRoles([]))
       .finally(() => setLoadingRoles(false));
   }, [user.id]);
@@ -335,8 +344,8 @@ export default function AdminPage() {
       lookup.getCategories(), // GET /lookup/kategorier
     ])
       .then(([u, r, k]) => {
-        setUsers(Array.isArray(u) ? u : []);
-        setRoles(Array.isArray(r) ? r : []);
+        setUsers(Array.isArray(u) ? u.map(normalizeUser) : []);
+        setRoles(Array.isArray(r) ? r.map(normalizeRole) : []);
         setCategories(Array.isArray(k) ? k : []);
       })
       .catch(err => setError(err.message))
@@ -468,4 +477,23 @@ export default function AdminPage() {
       )}
     </div>
   );
+}
+
+// Normalize role objects from backend (handles fields like Rolle_ID / Navn)
+function normalizeRole(raw) {
+  if (!raw) return raw;
+  const id = raw.Rolle_ID ?? raw.rolleId ?? raw.id ?? raw.RolleId ?? raw.RolleId;
+  const navn = raw.Navn ?? raw.navn ?? raw.name ?? raw.Name;
+  const out = { id, navn };
+  if (raw.rolleId) out.rolleId = raw.rolleId;
+  if (raw.Rolle_ID) out.rolleId = raw.Rolle_ID;
+  return out;
+}
+
+function normalizeUser(raw) {
+  if (!raw) return raw;
+  return {
+    ...raw,
+    roller: Array.isArray(raw.roller) ? raw.roller.map(normalizeRole) : raw.roller,
+  };
 }
