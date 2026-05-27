@@ -64,8 +64,11 @@ export const hendelser = {
   getById: (id) => request(`/hendelser/${id}`),
   create: (data) => request('/hendelser', { method: 'POST', body: JSON.stringify(data) }),
   delete: (id) => request(`/hendelser/${id}`, { method: 'DELETE' }),
-  updateStatus: (id, status) =>
-    request(`/hendelser/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  updateStatus: (hendelseId, statusId) =>
+      request(`/hendelser/${hendelseId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ statusId })
+      }),
   updatePriority: (id, prioritering) =>
     request(`/hendelser/${id}/prioritering`, { method: 'PATCH', body: JSON.stringify({ prioritering }) }),
   updateResponsible: (id, ansvarligId) =>
@@ -80,8 +83,17 @@ export const hendelser = {
 // --- Kommentarer ---
 export const kommentarer = {
   getByHendelse: (hendelseId) => request(`/kommentarer/${hendelseId}/kommentarer`),
-  create: (hendelseId, innhold) =>
-    request(`/kommentarer/${hendelseId}/kommentarer`, { method: 'POST', body: JSON.stringify({ innhold }) }),
+  
+  // Endret fra (hendelseId, innhold) til (hendelseId, brukerId, tekst)
+  create: (hendelseId, brukerId, tekst) =>
+    request(`/kommentarer/${hendelseId}/kommentarer`, { 
+      method: 'POST', 
+      body: JSON.stringify({ 
+        brukerId, // Sender nå brukerId
+        tekst     // Bruker feltnavnet 'tekst' som forespurt
+      }) 
+    }),
+
   delete: (id) => request(`/kommentarer/${id}`, { method: 'DELETE' }),
 };
 
