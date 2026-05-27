@@ -27,7 +27,7 @@ async function request(path, options = {}) {
 // --- Auth ---
 export const auth = {
   login: (brukernavn, passord) =>
-    request('/brukere/login', { method: 'POST', body: JSON.stringify({ brukernavn, passord }) }),
+    request('/brukere/login', { method: 'POST', body: JSON.stringify({ username: brukernavn, password: passord }) }),
   logout: () =>
     request('/brukere/logout', { method: 'POST' }),
   register: (data) =>
