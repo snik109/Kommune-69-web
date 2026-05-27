@@ -66,7 +66,7 @@ export const hendelser = {
   delete: (id) => request(`/hendelser/${id}`, { method: 'DELETE' }),
   updateStatus: (hendelseId, statusId) =>
       request(`/hendelser/${hendelseId}/status`, {
-        method: 'PUT',
+        method: 'PATCH',
         body: JSON.stringify({ statusId })
       }),
   updatePriority: (id, prioritering) =>
