@@ -92,14 +92,16 @@ export default function App() {
           <HendelserPage onSelect={handleSelectFromOversikt} />
         )}
         
-        {page === 'management' && management && (
+        {/* FJERNET: && isManagement(user) - nå vises den for alle */}
+        {page === 'management' && (
           <ManagementPage 
             initialId={selectedHendelseId} 
             onClearInitial={() => setSelectedHendelseId(null)} 
           />
         )}
-        
-        {page === 'admin' && admin && <AdminPage />}
+
+        {page === 'brukere' && <BrukerePage />}
+        {page === 'admin' && <AdminPage />}
       </main>
     </div>
   );

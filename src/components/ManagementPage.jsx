@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { hendelser, kommentarer, lookup } from '../services/api';
 import styles from '../styles/ManagementPage.module.css';
 
-// Mapper SQL-resultater til frontend-format
+// Mapper SQL-resultater (PascalCase) til frontend (camelCase)
 function normalizeHendelse(raw) {
   if (!raw) return raw;
   return {
@@ -23,7 +23,7 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
   const [loadingComments, setLoadingComments] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Henter data fra localStorage basert på formatet ditt
+  // Henter innlogget bruker fra ditt spesifikke format i localStorage
   const userJson = localStorage.getItem('user');
   const currentUser = userJson ? JSON.parse(userJson) : null;
   const brukerId = currentUser?.Bruker_ID;
@@ -31,7 +31,9 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
   useEffect(() => {
     setLoadingComments(true);
     kommentarer.getByHendelse(hendelse.id)
-      .then(data => setComments(Array.isArray(data) ? data : []))
+      .then(data => {
+        setComments(Array.isArray(data) ? data : []);
+      })
       .catch(() => setComments([]))
       .finally(() => setLoadingComments(false));
   }, [hendelse.id]);
@@ -60,6 +62,7 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
       // SENDER: hendelseId, brukerId, tekst
       await kommentarer.create(hendelse.id, brukerId, newComment);
       
+      // Oppdaterer listen
       const updated = await kommentarer.getByHendelse(hendelse.id);
       setComments(Array.isArray(updated) ? updated : []);
       setNewComment('');
@@ -105,12 +108,13 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
             {loadingComments ? (
               <span>Laster...</span>
             ) : comments.map(c => (
-              <div key={c.id || c.Kommentar_ID} className={styles.comment}>
+              <div key={c.Kommentar_ID} className={styles.comment}>
                 <div className={styles.commentMeta}>
-                  <strong>{c.DisplayName || c.brukernavn || 'Ukjent'}</strong>
-                  <span>{new Date(c.Tidspunkt || c.tidspunkt).toLocaleString('nb-NO')}</span>
+                  {/* Bruker PascalCase-feltene fra API-et ditt */}
+                  <strong>{c.DisplayName || 'Ukjent'}</strong>
+                  <span>{c.Tidspunkt ? new Date(c.Tidspunkt).toLocaleString('nb-NO') : ''}</span>
                 </div>
-                <p>{c.tekst || c.Innhold}</p>
+                <p>{c.Tekst}</p>
               </div>
             ))}
           </div>
@@ -143,7 +147,7 @@ export default function ManagementPage({ initialId, onClearInitial }) {
   const [selectedHendelse, setSelectedHendelse] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Sjekker rolle fra formatet {"roles": ["admin"]}
+  // Sjekker roller fra localStorage
   const userJson = localStorage.getItem('user');
   const user = userJson ? JSON.parse(userJson) : null;
   const userRoles = Array.isArray(user?.roles) ? user.roles : [];
@@ -186,7 +190,11 @@ export default function ManagementPage({ initialId, onClearInitial }) {
   return (
     <div className={styles.management}>
       <div className={styles.listPanel}>
-        <div className="page-header"><h1>Hendelsestyring</h1></div>
+        <div className="page-header">
+          <h1>Hendelsestyring</h1>
+          {!canManage && <span className="badge badge-neutral">Kun lesetilgang</span>}
+        </div>
+
         <input
           className="input"
           placeholder="Søk i titler..."
@@ -197,7 +205,7 @@ export default function ManagementPage({ initialId, onClearInitial }) {
         
         {!canManage && (
           <div className="alert alert-info" style={{ marginBottom: '1rem' }}>
-            Du har kun lesetilgang. Logg inn som admin/management for å behandle saker.
+            Du har lesetilgang, men kun brukere i ledelsen kan behandle sakene.
           </div>
         )}
 
@@ -209,7 +217,7 @@ export default function ManagementPage({ initialId, onClearInitial }) {
                 ${selectedHendelse?.id === h.id ? styles.activeCard : ''}`}
               style={{ 
                 cursor: canManage ? 'pointer' : 'not-allowed',
-                opacity: canManage ? 1 : 0.6 
+                opacity: canManage ? 1 : 0.7 
               }}
               onClick={() => {
                 if (canManage) {
