@@ -13,6 +13,7 @@ const statusBadge = (s) => {
 };
 
 function CreateModal({ onClose, onCreated, statuses = [], priorities = [] }) {
+  // Vi sender kun tittel, beskrivelse, statusId og prioriteringId til API
   const [form, setForm] = useState({ tittel: '', beskrivelse: '', statusId: '', prioriteringId: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -56,9 +57,7 @@ function CreateModal({ onClose, onCreated, statuses = [], priorities = [] }) {
               <select className="select" value={form.statusId} onChange={e => set('statusId', e.target.value)}>
                 <option value="">Velg status</option>
                 {statuses.map(s => (
-                  <option key={s.Status_ID || s.id} value={s.Status_ID || s.id}>
-                    {s.Navn || s.navn}
-                  </option>
+                  <option key={s.Status_ID} value={s.Status_ID}>{s.Navn}</option>
                 ))}
               </select>
             </div>
@@ -67,18 +66,14 @@ function CreateModal({ onClose, onCreated, statuses = [], priorities = [] }) {
               <select className="select" value={form.prioriteringId} onChange={e => set('prioriteringId', e.target.value)}>
                 <option value="">Velg prioritering</option>
                 {priorities.map(p => (
-                  <option key={p.Prioritering_ID || p.id} value={p.Prioritering_ID || p.id}>
-                    {p.Navn || p.navn}
-                  </option>
+                  <option key={p.Prioritering_ID} value={p.Prioritering_ID}>{p.Navn}</option>
                 ))}
               </select>
             </div>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Avbryt</button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? <span className="spinner" /> : 'Opprett'}
-            </button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>Opprett</button>
           </div>
         </form>
       </div>
@@ -87,49 +82,36 @@ function CreateModal({ onClose, onCreated, statuses = [], priorities = [] }) {
 }
 
 export default function HendelserPage({ onSelect }) {
-  const [items, setItems]       = useState([]);
+  const [items, setItems] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [priorities, setPriorities] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
-  const [search, setSearch]     = useState('');
+  const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [h, s, p] = await Promise.all([
-          hendelser.getAll(),
-          lookup.getStatuses(),
-          lookup.getPriorities(),
-        ]);
-        
-        setItems(Array.isArray(h) ? h : []);
-        // Pakker ut listene fra objektene {"statuser": [...]} og {"prioriteringer": [...]}
-        setStatuses(s?.statuser || []);
-        setPriorities(p?.prioriteringer || []);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  const fetchAll = async () => {
+    try {
+      const [h, s, p] = await Promise.all([
+        hendelser.getAll(),
+        lookup.getStatuses(),
+        lookup.getPriorities(),
+      ]);
+      setItems(Array.isArray(h) ? h : []);
+      setStatuses(s?.statuser || []);
+      setPriorities(p?.prioriteringer || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchAll(); }, []);
 
   const filtered = items.filter(h =>
-    (h.tittel || h.Tittel || '').toLowerCase().includes(search.toLowerCase())
+    (h.Tittel || h.tittel || '').toLowerCase().includes(search.toLowerCase())
   );
-
-  async function handleDelete(id, e) {
-    e.stopPropagation();
-    if (!confirm('Slett denne hendelsen?')) return;
-    try {
-      await hendelser.delete(id);
-      setItems(prev => prev.filter(h => h.id !== id));
-    } catch (err) {
-      alert(err.message);
-    }
-  }
 
   return (
     <div className="page">
@@ -138,23 +120,17 @@ export default function HendelserPage({ onSelect }) {
         <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ Ny hendelse</button>
       </div>
 
-      {error && <div className="alert alert-error" style={{ marginBottom: '1rem' }}>{error}</div>}
-
       <div className={styles.toolbar}>
         <input
           className="input"
-          style={{ maxWidth: 280 }}
           placeholder="Søk etter hendelse…"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
-        <span className={styles.count}>{filtered.length} hendelser</span>
       </div>
 
       <div className="card" style={{ padding: 0 }}>
-        {loading ? (
-          <div className="loading-center"><span className="spinner" /></div>
-        ) : (
+        {loading ? <div className="loading-center"><span className="spinner" /></div> : (
           <div className="table-wrap">
             <table>
               <thead>
@@ -164,20 +140,17 @@ export default function HendelserPage({ onSelect }) {
                   <th>Prioritering</th>
                   <th>Ansvarlig</th>
                   <th>Opprettet</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map(h => (
-                  <tr key={h.id} className={styles.row} onClick={() => onSelect?.(h.id)}>
-                    <td><span className={styles.tittel}>{h.tittel || h.Tittel}</span></td>
-                    <td><span className={`badge ${statusBadge(h.status || h.Status)}`}>{h.status || h.Status || '—'}</span></td>
-                    <td><span className={`badge ${priorityBadge(h.prioritering || h.Prioritering)}`}>{h.prioritering || h.Prioritering || '—'}</span></td>
-                    <td>{h.ansvarlig || 'Ikke tildelt'}</td>
-                    <td>{h.opprettetTid ? new Date(h.opprettetTid).toLocaleDateString('nb-NO') : '—'}</td>
-                    <td>
-                      <button className="btn btn-danger btn-sm" onClick={e => handleDelete(h.id, e)}>Slett</button>
-                    </td>
+                  <tr key={h.Hendelse_ID || h.id} onClick={() => onSelect?.(h.Hendelse_ID || h.id)} style={{ cursor: 'pointer' }}>
+                    <td><strong>{h.Tittel || h.tittel}</strong></td>
+                    {/* Bruker StatusNavn og PrioriteringNavn fra din API-respons */}
+                    <td><span className={`badge ${statusBadge(h.StatusNavn)}`}>{h.StatusNavn || '—'}</span></td>
+                    <td><span className={`badge ${priorityBadge(h.PrioriteringNavn)}`}>{h.PrioriteringNavn || '—'}</span></td>
+                    <td>{h.AnsvarligNavn || <span style={{ color: 'var(--c-muted)' }}>Ikke tildelt</span>}</td>
+                    <td>{h.Tidspunkt_Opprettet ? new Date(h.Tidspunkt_Opprettet).toLocaleDateString('nb-NO') : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -191,7 +164,7 @@ export default function HendelserPage({ onSelect }) {
           statuses={statuses}
           priorities={priorities}
           onClose={() => setShowCreate(false)}
-          onCreated={h => { setItems(prev => [h, ...prev]); setShowCreate(false); }}
+          onCreated={() => { fetchAll(); setShowCreate(false); }}
         />
       )}
     </div>
