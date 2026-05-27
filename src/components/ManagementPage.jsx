@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { hendelser, kommentarer, lookup } from '../services/api';
 import styles from '../styles/ManagementPage.module.css';
 
+// Mapper SQL-resultater til frontend-format
 function normalizeHendelse(raw) {
   if (!raw) return raw;
   return {
@@ -22,8 +23,10 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
   const [loadingComments, setLoadingComments] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const currentUser = JSON.parse(localStorage.getItem('user'));
-  const brukerId = currentUser?.id || currentUser?.Bruker_ID;
+  // Henter data fra localStorage basert på formatet ditt
+  const userJson = localStorage.getItem('user');
+  const currentUser = userJson ? JSON.parse(userJson) : null;
+  const brukerId = currentUser?.Bruker_ID;
 
   useEffect(() => {
     setLoadingComments(true);
@@ -39,7 +42,7 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
 
     setSaving(true);
     try {
-      // Sender hendelseId og statusId
+      // SENDER: hendelseId, statusId
       await hendelser.updateStatus(hendelse.id, statusObj.Status_ID);
       onUpdated?.(); 
     } catch (err) {
@@ -54,7 +57,7 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
     
     setSaving(true);
     try {
-      // Sender hendelseId, brukerId og tekst
+      // SENDER: hendelseId, brukerId, tekst
       await kommentarer.create(hendelse.id, brukerId, newComment);
       
       const updated = await kommentarer.getByHendelse(hendelse.id);
@@ -104,8 +107,8 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
             ) : comments.map(c => (
               <div key={c.id || c.Kommentar_ID} className={styles.comment}>
                 <div className={styles.commentMeta}>
-                  <strong>{c.brukernavn || c.DisplayName || 'Ukjent'}</strong>
-                  <span>{new Date(c.tidspunkt || c.Tidspunkt).toLocaleString('nb-NO')}</span>
+                  <strong>{c.DisplayName || c.brukernavn || 'Ukjent'}</strong>
+                  <span>{new Date(c.Tidspunkt || c.tidspunkt).toLocaleString('nb-NO')}</span>
                 </div>
                 <p>{c.tekst || c.Innhold}</p>
               </div>
@@ -140,10 +143,11 @@ export default function ManagementPage({ initialId, onClearInitial }) {
   const [selectedHendelse, setSelectedHendelse] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Tilgangskontroll
-  const currentUser = JSON.parse(localStorage.getItem('user'));
-  const userRole = (currentUser?.RolleNavn || currentUser?.rolle || '').toLowerCase();
-  const canManage = userRole === 'admin' || userRole === 'management';
+  // Sjekker rolle fra formatet {"roles": ["admin"]}
+  const userJson = localStorage.getItem('user');
+  const user = userJson ? JSON.parse(userJson) : null;
+  const userRoles = Array.isArray(user?.roles) ? user.roles : [];
+  const canManage = userRoles.includes('admin') || userRoles.includes('management');
 
   const fetchData = useCallback(async () => {
     try {
@@ -193,7 +197,7 @@ export default function ManagementPage({ initialId, onClearInitial }) {
         
         {!canManage && (
           <div className="alert alert-info" style={{ marginBottom: '1rem' }}>
-            Du har kun lesetilgang. Kontakt admin for å behandle hendelser.
+            Du har kun lesetilgang. Logg inn som admin/management for å behandle saker.
           </div>
         )}
 
@@ -202,10 +206,16 @@ export default function ManagementPage({ initialId, onClearInitial }) {
             <div 
               key={h.id} 
               className={`card ${styles.hendelseCard} 
-                ${selectedHendelse?.id === h.id ? styles.activeCard : ''}
-                ${!canManage ? styles.readOnlyCard : ''}`}
-              onClick={() => canManage && setSelectedHendelse(h)}
-              style={{ cursor: canManage ? 'pointer' : 'not-allowed' }}
+                ${selectedHendelse?.id === h.id ? styles.activeCard : ''}`}
+              style={{ 
+                cursor: canManage ? 'pointer' : 'not-allowed',
+                opacity: canManage ? 1 : 0.6 
+              }}
+              onClick={() => {
+                if (canManage) {
+                  setSelectedHendelse(h);
+                }
+              }}
             >
               <div className={styles.hendelseHeader}>
                 <h3>{h.tittel}</h3>
