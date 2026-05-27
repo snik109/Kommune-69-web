@@ -2,7 +2,13 @@ const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:3868/api/v1.
 console.log('API Base URL:', BASE_URL);
 
 function getToken() {
-  return localStorage.getItem('token');
+  const token = localStorage.getItem('token');
+  console.log('[getToken] Retrieving from localStorage:', {
+    token: token ? `${token.substring(0, 20)}...` : 'NULL/UNDEFINED',
+    allStorageKeys: Object.keys(localStorage),
+    fullStorage: { token: localStorage.getItem('token'), user: localStorage.getItem('user') }
+  });
+  return token;
 }
 
 async function request(path, options = {}) {
