@@ -31,7 +31,13 @@ export const auth = {
   logout: () =>
     request('/brukere/logout', { method: 'POST' }),
   register: (data) =>
-    request('/brukere/register', { method: 'POST', body: JSON.stringify(data) }),
+    // normalize Norwegian field names to backend expectations
+    (() => {
+      const payload = { ...data };
+      if (payload.brukernavn) { payload.username = payload.brukernavn; delete payload.brukernavn; }
+      if (payload.passord) { payload.password = payload.passord; delete payload.passord; }
+      return request('/brukere/register', { method: 'POST', body: JSON.stringify(payload) });
+    })(),
 };
 
 // --- Brukere ---
