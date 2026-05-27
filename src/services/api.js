@@ -69,8 +69,8 @@ export const hendelser = {
         method: 'PATCH',
         body: JSON.stringify({ statusId })
       }),
-  updatePriority: (id, prioritering) =>
-    request(`/hendelser/${id}/prioritering`, { method: 'PATCH', body: JSON.stringify({ prioritering }) }),
+  updatePriority: (id, prioriteringId) =>
+    request(`/hendelser/${id}/prioritering`, { method: 'PATCH', body: JSON.stringify({ prioriteringId }) }),
   updateResponsible: (id, brukerId) =>
     request(`/hendelser/${id}/ansvarlig`, { method: 'PATCH', body: JSON.stringify({ brukerId }) }),
   getCategories: (id) => request(`/hendelser/${id}/kategorier`),
