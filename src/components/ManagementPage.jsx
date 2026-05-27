@@ -32,7 +32,6 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
   const currentUser = JSON.parse(localStorage.getItem('user'));
   const innloggetBrukerId = currentUser?.Bruker_ID || currentUser?.id;
 
-  // Henter kommentarer og tiltak når hendelse.id endres
   useEffect(() => {
     let isMounted = true;
     setLoadingDetails(true);
@@ -63,7 +62,6 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
   const handlePriorityChange = async (val) => {
     setSaving(true);
     try {
-      // VIKTIG: Sender prioriteringId som et tall slik API-et krever
       const pId = Number(val);
       await hendelser.updatePriority(hendelse.id, pId);
       await onUpdated();
@@ -74,7 +72,6 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
   const handleResponsibleChange = async (val) => {
     setSaving(true);
     try {
-      // Sender brukerId som tall (eller null hvis tom)
       const bId = val === "" ? null : Number(val);
       await hendelser.updateResponsible(hendelse.id, bId);
       await onUpdated();
@@ -122,7 +119,12 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
         <div className={styles.detailGrid} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '1.5rem' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>STATUS</label>
-            <select className="select" value={hendelse.status} onChange={e => handleStatusChange(e.target.value)} disabled={saving}>
+            <select 
+              className="select" 
+              value={hendelse.status || ""} 
+              onChange={e => handleStatusChange(e.target.value)} 
+              disabled={saving}
+            >
               {statuses.map(s => <option key={s.Status_ID} value={s.Navn}>{s.Navn}</option>)}
             </select>
           </div>
@@ -131,7 +133,7 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>PRIORITET</label>
             <select 
               className="select" 
-              value={String(hendelse.prioriteringId)} 
+              value={hendelse.prioriteringId ? String(hendelse.prioriteringId) : ""} 
               onChange={e => handlePriorityChange(e.target.value)} 
               disabled={saving}
             >
@@ -222,7 +224,6 @@ export default function ManagementPage({ initialId, onClearInitial }) {
       
       const normalized = Array.isArray(h) ? h.map(normalizeHendelse) : [];
       
-      // Sortering (Åpen -> Behandles -> Løst -> Lukket)
       const order = { 'åpen': 1, 'under behandling': 2, 'løst': 3, 'lukket': 4 };
       normalized.sort((a, b) => {
         const aVal = order[a.status.toLowerCase()] || 99;
@@ -240,10 +241,8 @@ export default function ManagementPage({ initialId, onClearInitial }) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const selectedHendelse = useMemo(() => 
-    hendelserList.find(h => h.id === selectedId),
-    [hendelserList, selectedId]
-  );
+  // VIKTIG: Finn selectedHendelse direkte hver gang listen endres
+  const selectedHendelse = hendelserList.find(h => h.id === selectedId);
 
   const filtered = useMemo(() => 
     hendelserList.filter(h => h.tittel.toLowerCase().includes(searchTerm.toLowerCase())),
