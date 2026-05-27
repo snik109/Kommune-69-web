@@ -11,59 +11,14 @@
   letter-spacing: 0.08em;
 }
 
-.statsGrid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-@media (max-width: 900px) {
-  .statsGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 500px) {
-  .statsGrid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.statCard {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.statLabel {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--c-muted);
-}
-
-.statValue {
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1;
-  color: var(--c-text);
-}
-
-.statSub {
-  font-size: 0.78rem;
-  color: var(--c-muted);
-}
-
+/* ── Sections ─────────────────────────────────────────────── */
 .section {
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
 }
 
 .sectionHeader {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 0.75rem;
 }
@@ -76,6 +31,22 @@
   color: var(--c-muted);
 }
 
+.sectionDesc {
+  font-size: 0.8rem;
+  color: var(--c-muted);
+  margin-top: 0.2rem;
+}
+
+/* ── Table toolbar ────────────────────────────────────────── */
+.tableToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--c-border);
+}
+
+/* ── Role chips ───────────────────────────────────────────── */
 .roleGrid {
   display: flex;
   flex-wrap: wrap;
@@ -94,9 +65,7 @@
   transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
 
-.roleChip:hover {
-  background: var(--c-bg);
-}
+.roleChip:hover { background: var(--c-bg); }
 
 .roleChipActive {
   background: var(--c-accent);
@@ -108,4 +77,60 @@
 .roleChipActive:hover {
   opacity: 0.85;
   background: var(--c-accent);
+}
+
+/* ── Lookup grid ──────────────────────────────────────────── */
+.lookupGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 700px) {
+  .lookupGrid { grid-template-columns: 1fr; }
+}
+
+.lookupTable {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+
+.lookupTitle {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--c-muted);
+  margin-bottom: 0.75rem;
+}
+
+.lookupItems {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.lookupItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.65rem;
+  background: var(--c-bg);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+}
+
+.lookupAddRow {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.lookupAddRow .input {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.6rem;
 }

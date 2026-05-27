@@ -1,35 +1,96 @@
 import { useState, useEffect } from 'react';
-import { brukere, hendelser, lookup, roller } from '../services/api';
+import { brukere, roller, lookup, auth } from '../services/api';
 import styles from '../styles/AdminPage.module.css';
 
-function StatCard({ label, value, sub }) {
-  return (
-    <div className={`card ${styles.statCard}`}>
-      <span className={styles.statLabel}>{label}</span>
-      <span className={styles.statValue}>{value ?? <span className="spinner" />}</span>
-      {sub && <span className={styles.statSub}>{sub}</span>}
-    </div>
-  );
-}
+// ─── Shared helpers ────────────────────────────────────────────
 
-function Section({ title, action, children }) {
+function Section({ title, description, children }) {
   return (
     <section className={styles.section}>
       <div className={styles.sectionHeader}>
-        <h2 className={styles.sectionTitle}>{title}</h2>
-        {action}
+        <div>
+          <h2 className={styles.sectionTitle}>{title}</h2>
+          {description && <p className={styles.sectionDesc}>{description}</p>}
+        </div>
       </div>
       {children}
     </section>
   );
 }
 
+// ─── Register user modal ───────────────────────────────────────
+
+function RegisterModal({ roles, onClose, onCreated }) {
+  const [form, setForm] = useState({ brukernavn: '', passord: '', epost: '', rolleId: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const user = await auth.register(form);
+      onCreated(user);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-header">
+          <h2>Registrer bruker</h2>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+        {error && <div className="alert alert-error" style={{ marginBottom: '1rem' }}>{error}</div>}
+        <form onSubmit={handleSubmit} className="stack">
+          <div className="form-grid">
+            <div className="field">
+              <label>Brukernavn</label>
+              <input className="input" required value={form.brukernavn} onChange={e => set('brukernavn', e.target.value)} />
+            </div>
+            <div className="field">
+              <label>E-post</label>
+              <input className="input" type="email" value={form.epost} onChange={e => set('epost', e.target.value)} />
+            </div>
+          </div>
+          <div className="field">
+            <label>Passord</label>
+            <input className="input" type="password" required value={form.passord} onChange={e => set('passord', e.target.value)} />
+          </div>
+          <div className="field">
+            <label>Rolle</label>
+            <select className="select" value={form.rolleId} onChange={e => set('rolleId', e.target.value)}>
+              <option value="">Ingen rolle</option>
+              {roles.map(r => <option key={r.id} value={r.id}>{r.navn}</option>)}
+            </select>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Avbryt</button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? <span className="spinner" /> : 'Registrer'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Edit user modal ───────────────────────────────────────────
+
 function EditUserModal({ user, allRoles, onClose, onSaved }) {
   const [form, setForm] = useState({ brukernavn: user.brukernavn || '', epost: user.epost || '' });
-  const [userRoles, setUserRoles]   = useState([]);
+  const [userRoles, setUserRoles] = useState([]);
   const [loadingRoles, setLoadingRoles] = useState(true);
-  const [saving, setSaving]         = useState(false);
-  const [error, setError]           = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     roller.getForUser(user.id)
@@ -78,9 +139,7 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
           <h2>Rediger bruker</h2>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
-
         {error && <div className="alert alert-error" style={{ marginBottom: '1rem' }}>{error}</div>}
-
         <form onSubmit={handleSave} className="stack">
           <div className="form-grid">
             <div className="field">
@@ -94,9 +153,7 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
                 onChange={e => setForm(f => ({ ...f, epost: e.target.value }))} />
             </div>
           </div>
-
           <hr className="divider" />
-
           <div className="field">
             <label>Roller</label>
             {loadingRoles
@@ -121,7 +178,6 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
               )
             }
           </div>
-
           <div className="modal-footer">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Avbryt</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
@@ -134,31 +190,102 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
   );
 }
 
+// ─── Lookup table editor ───────────────────────────────────────
+// Generic add/display for static lookup tables (statuser, prioriteringer, kategorier, roller)
+
+function LookupTable({ label, items, loading, onAdd, onDelete }) {
+  const [newNavn, setNewNavn] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function handleAdd(e) {
+    e.preventDefault();
+    if (!newNavn.trim()) return;
+    setSaving(true);
+    try {
+      await onAdd(newNavn.trim());
+      setNewNavn('');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className={styles.lookupTable}>
+      <h3 className={styles.lookupTitle}>{label}</h3>
+      {loading ? (
+        <div style={{ padding: '1rem 0' }}><span className="spinner" /></div>
+      ) : items.length === 0 ? (
+        <p style={{ color: 'var(--c-muted)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>Ingen verdier ennå.</p>
+      ) : (
+        <div className={styles.lookupItems}>
+          {items.map(item => (
+            <div key={item.id} className={styles.lookupItem}>
+              <span>{item.navn}</span>
+              {onDelete && (
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => onDelete(item.id)}
+                >✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {onAdd && (
+        <form onSubmit={handleAdd} className={styles.lookupAddRow}>
+          <input
+            className="input"
+            placeholder={`Ny ${label.toLowerCase()}…`}
+            value={newNavn}
+            onChange={e => setNewNavn(e.target.value)}
+          />
+          <button className="btn btn-primary btn-sm" type="submit" disabled={saving}>
+            {saving ? <span className="spinner" /> : 'Legg til'}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+// ─── Main AdminPage ────────────────────────────────────────────
+
 export default function AdminPage() {
-  const [users, setUsers]           = useState(null);
-  const [allHendelser, setAllHendelser] = useState(null);
-  const [roles, setRoles]           = useState([]);
-  const [statuses, setStatuses]     = useState([]);
-  const [error, setError]           = useState('');
-  const [editUser, setEditUser]     = useState(null);
+  // Users
+  const [users, setUsers]       = useState(null);
+  const [roles, setRoles]       = useState([]);
+  const [editUser, setEditUser] = useState(null);
+  const [showRegister, setShowRegister] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  // Lookup data
+  const [statuses, setStatuses]         = useState([]);
+  const [priorities, setPriorities]     = useState([]);
+  const [categories, setCategories]     = useState([]);
+  const [lookupLoading, setLookupLoading] = useState(true);
+
+  const [error, setError] = useState('');
 
   useEffect(() => {
     Promise.all([
       brukere.getAll(),
-      hendelser.getAll(),
       lookup.getRoles(),
       lookup.getStatuses(),
+      lookup.getPriorities(),
+      lookup.getCategories(),
     ])
-      .then(([u, h, r, s]) => {
+      .then(([u, r, s, p, k]) => {
         setUsers(u);
-        setAllHendelser(h);
         setRoles(r);
         setStatuses(s);
+        setPriorities(p);
+        setCategories(k);
       })
-      .catch(err => setError(err.message));
+      .catch(err => setError(err.message))
+      .finally(() => setLookupLoading(false));
   }, []);
 
+  // User actions
   async function handleDeleteUser(id) {
     try {
       await brukere.delete(id);
@@ -169,17 +296,18 @@ export default function AdminPage() {
     }
   }
 
-  async function handleDeleteHendelse(id) {
+  // Note: lookup endpoints in your API are GET-only (no POST/DELETE routes shown).
+  // The add/delete handlers below are wired up and ready — connect them when
+  // you add those routes to the backend.
+  async function handleLookupAdd(setter, endpoint, navn) {
     try {
-      await hendelser.delete(id);
-      setAllHendelser(prev => prev.filter(h => h.id !== id));
+      // const created = await endpoint(navn);
+      // setter(prev => [...prev, created]);
+      alert(`Backend POST route needed to add "${navn}"`);
     } catch (err) {
       alert(err.message);
     }
   }
-
-  const openCount   = allHendelser?.filter(h => h.status?.toLowerCase() !== 'lukket' && h.status?.toLowerCase() !== 'løst').length;
-  const resolvedCount = allHendelser?.filter(h => h.status?.toLowerCase() === 'løst').length;
 
   return (
     <div className="page">
@@ -187,7 +315,7 @@ export default function AdminPage() {
         <div>
           <h1>Admin</h1>
           <p style={{ color: 'var(--c-muted)', fontSize: '0.875rem', marginTop: '0.2rem' }}>
-            Systemadministrasjon og oversikt
+            Brukere og statiske verdier
           </p>
         </div>
         <span className={styles.adminBadge}>Admin</span>
@@ -195,17 +323,21 @@ export default function AdminPage() {
 
       {error && <div className="alert alert-error" style={{ marginBottom: '1.25rem' }}>{error}</div>}
 
-      {/* Stats row */}
-      <div className={styles.statsGrid}>
-        <StatCard label="Totalt brukere"    value={users?.length}         sub="registrerte kontoer" />
-        <StatCard label="Totalt hendelser"  value={allHendelser?.length}  sub="alle oppføringer" />
-        <StatCard label="Åpne hendelser"    value={openCount}             sub="ikke avsluttet" />
-        <StatCard label="Løste hendelser"   value={resolvedCount}         sub="markert løst" />
-      </div>
-
-      {/* Users section */}
-      <Section title="Brukere" action={null}>
+      {/* ── Users ──────────────────────────────────────────── */}
+      <Section
+        title="Brukere"
+        description="Opprett, rediger og slett brukerkontoer og tilordne roller."
+      >
         <div className="card" style={{ padding: 0 }}>
+          <div className={styles.tableToolbar}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--c-muted)' }}>
+              {users ? `${users.length} brukere` : ''}
+            </span>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowRegister(true)}>
+              + Registrer bruker
+            </button>
+          </div>
+
           {users === null ? (
             <div className="loading-center"><span className="spinner" /></div>
           ) : users.length === 0 ? (
@@ -260,48 +392,46 @@ export default function AdminPage() {
         </div>
       </Section>
 
-      {/* Hendelser section */}
-      <Section title="Alle hendelser">
-        <div className="card" style={{ padding: 0 }}>
-          {allHendelser === null ? (
-            <div className="loading-center"><span className="spinner" /></div>
-          ) : allHendelser.length === 0 ? (
-            <div className="empty"><h3>Ingen hendelser</h3></div>
-          ) : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Tittel</th>
-                    <th>Status</th>
-                    <th>Prioritering</th>
-                    <th>Ansvarlig</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allHendelser.map(h => (
-                    <tr key={h.id}>
-                      <td><strong>{h.tittel}</strong></td>
-                      <td>
-                        <span className="badge badge-neutral">{h.status || '—'}</span>
-                      </td>
-                      <td style={{ color: 'var(--c-text-2)' }}>{h.prioritering || '—'}</td>
-                      <td style={{ color: 'var(--c-text-2)' }}>{h.ansvarlig || '—'}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDeleteHendelse(h.id)}
-                        >Slett</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+      {/* ── Static / lookup values ──────────────────────────── */}
+      <Section
+        title="Statiske verdier"
+        description="Administrer oppslagsverdier brukt i hendelsessystemet."
+      >
+        <div className={styles.lookupGrid}>
+          <LookupTable
+            label="Statuser"
+            items={statuses}
+            loading={lookupLoading}
+            onAdd={navn => handleLookupAdd(setStatuses, null, navn)}
+          />
+          <LookupTable
+            label="Prioriteringer"
+            items={priorities}
+            loading={lookupLoading}
+            onAdd={navn => handleLookupAdd(setPriorities, null, navn)}
+          />
+          <LookupTable
+            label="Kategorier"
+            items={categories}
+            loading={lookupLoading}
+            onAdd={navn => handleLookupAdd(setCategories, null, navn)}
+          />
+          <LookupTable
+            label="Roller"
+            items={roles}
+            loading={lookupLoading}
+            onAdd={navn => handleLookupAdd(setRoles, null, navn)}
+          />
         </div>
       </Section>
+
+      {showRegister && (
+        <RegisterModal
+          roles={roles}
+          onClose={() => setShowRegister(false)}
+          onCreated={u => { setUsers(prev => [...prev, u]); setShowRegister(false); }}
+        />
+      )}
 
       {editUser && (
         <EditUserModal

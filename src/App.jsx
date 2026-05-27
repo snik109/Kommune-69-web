@@ -4,19 +4,27 @@ import HendelserPage from './components/HendelserPage';
 import HendelseDetailPage from './components/HendelseDetailPage';
 import BrukerePage from './components/BrukerePage';
 import AdminPage from './components/AdminPage';
+import ManagementPage from './components/ManagementPage';
 import { auth } from './services/api';
 import './styles/Global.css';
 
-function isAdmin(user) {
-  if (!user) return false;
-  // Handle common shapes: role string, roles array, roller array of objects
-  if (user.rolle === 'admin') return true;
-  if (Array.isArray(user.roles) && user.roles.includes('admin')) return true;
-  if (Array.isArray(user.roller) && user.roller.some(r => (r.navn ?? r) === 'admin')) return true;
-  return false;
+function getRole(user) {
+  if (!user) return null;
+  if (user.rolle) return user.rolle;
+  if (Array.isArray(user.roles) && user.roles.length) return user.roles[0];
+  if (Array.isArray(user.roller) && user.roller.length) return user.roller[0]?.navn ?? user.roller[0];
+  return null;
 }
 
-const navItem = (key, label) => ({ key, label });
+function isAdmin(user) {
+  const r = getRole(user);
+  return r === 'admin';
+}
+
+function isManagement(user) {
+  const r = getRole(user);
+  return r === 'admin' || r === 'management';
+}
 
 export default function App() {
   const [user, setUser] = useState(() => {
@@ -36,17 +44,23 @@ export default function App() {
     return <LoginPage onLogin={setUser} />;
   }
 
-  const admin = isAdmin(user);
+  const admin      = isAdmin(user);
+  const management = isManagement(user);
 
+  // Build nav: everyone gets Hendelser, management+ gets Management, admin gets Brukere + Admin
   const navItems = [
-    navItem('hendelser', 'Hendelser'),
-    ...(admin ? [navItem('brukere', 'Brukere'), navItem('admin', 'Admin')] : []),
+    { key: 'hendelser',  label: 'Hendelser' },
+    ...(management ? [{ key: 'management', label: 'Hendelsestyring' }] : []),
+    ...(admin      ? [{ key: 'brukere',    label: 'Brukere'          }] : []),
+    ...(admin      ? [{ key: 'admin',      label: 'Admin'            }] : []),
   ];
 
   function navigate(key) {
     setPage(key);
     setSelectedHendelse(null);
   }
+
+  const roleBadgeLabel = admin ? 'Admin' : management ? 'Management' : null;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -58,6 +72,7 @@ export default function App() {
         alignItems: 'center',
         height: 52,
         gap: '2rem',
+        flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span style={{ width: 8, height: 8, background: 'var(--c-accent)', borderRadius: '50%', display: 'block' }} />
@@ -89,20 +104,20 @@ export default function App() {
         </nav>
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {admin && (
+          {roleBadgeLabel && (
             <span style={{
               fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase',
               letterSpacing: '0.07em', color: 'var(--c-accent)',
               border: '1px solid currentColor', borderRadius: '20px',
               padding: '0.1rem 0.5rem',
-            }}>Admin</span>
+            }}>{roleBadgeLabel}</span>
           )}
           <span style={{ fontSize: '0.8rem', color: 'var(--c-muted)' }}>{user.brukernavn}</span>
           <button className="btn btn-ghost btn-sm" onClick={handleLogout}>Logg ut</button>
         </div>
       </header>
 
-      <main style={{ flex: 1 }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {page === 'hendelser' && !selectedHendelse && (
           <HendelserPage onSelect={id => setSelectedHendelse(id)} />
         )}
@@ -112,8 +127,9 @@ export default function App() {
             onBack={() => setSelectedHendelse(null)}
           />
         )}
-        {page === 'brukere' && admin && <BrukerePage />}
-        {page === 'admin'   && admin && <AdminPage />}
+        {page === 'management' && management && <ManagementPage />}
+        {page === 'brukere'    && admin      && <BrukerePage />}
+        {page === 'admin'      && admin      && <AdminPage />}
       </main>
     </div>
   );
