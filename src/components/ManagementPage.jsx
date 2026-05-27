@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { hendelser, kommentarer, lookup } from '../services/api';
 import styles from '../styles/ManagementPage.module.css';
 
-// Mapper SQL-resultater (PascalCase) til frontend (camelCase)
 function normalizeHendelse(raw) {
   if (!raw) return raw;
   return {
@@ -10,6 +9,7 @@ function normalizeHendelse(raw) {
     tittel: raw.Tittel ?? raw.tittel ?? '',
     beskrivelse: raw.Beskrivelse ?? raw.beskrivelse ?? '',
     status: raw.StatusNavn ?? raw.status ?? '',
+    statusId: raw.Status_ID ?? raw.statusId,
     prioritering: raw.PrioriteringNavn ?? raw.prioritering ?? '',
     ansvarlig: raw.AnsvarligNavn ?? raw.ansvarlig ?? '',
     tidspunkt_opprettet: raw.Tidspunkt_Opprettet ?? raw.tidspunkt_opprettet ?? new Date().toISOString(),
@@ -22,7 +22,6 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
   const [loadingComments, setLoadingComments] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Henter innlogget bruker for kommentar-ID
   const currentUser = JSON.parse(localStorage.getItem('user'));
   const brukerId = currentUser?.id || currentUser?.Bruker_ID;
 
@@ -40,7 +39,7 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
 
     setSaving(true);
     try {
-      // PRESIST SOM FOREVENTET: { hendelseId, statusId }
+      // Sender hendelseId og statusId
       await hendelser.updateStatus(hendelse.id, statusObj.Status_ID);
       onUpdated?.(); 
     } catch (err) {
@@ -55,7 +54,7 @@ function DetailPanel({ hendelse, statuses = [], onClose, onUpdated }) {
     
     setSaving(true);
     try {
-      // PRESIST SOM FORVENTET: { hendelseId, brukerId, tekst }
+      // Sender hendelseId, brukerId og tekst
       await kommentarer.create(hendelse.id, brukerId, newComment);
       
       const updated = await kommentarer.getByHendelse(hendelse.id);
@@ -141,6 +140,11 @@ export default function ManagementPage({ initialId, onClearInitial }) {
   const [selectedHendelse, setSelectedHendelse] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Tilgangskontroll
+  const currentUser = JSON.parse(localStorage.getItem('user'));
+  const userRole = (currentUser?.RolleNavn || currentUser?.rolle || '').toLowerCase();
+  const canManage = userRole === 'admin' || userRole === 'management';
+
   const fetchData = useCallback(async () => {
     try {
       const [h, s] = await Promise.all([
@@ -151,8 +155,7 @@ export default function ManagementPage({ initialId, onClearInitial }) {
       setHendelserList(normalized);
       setStatuses(s?.statuser || []);
 
-      // Autostart hvis vi kom fra Oversikt
-      if (initialId) {
+      if (initialId && canManage) {
         const found = normalized.find(item => item.id === initialId);
         if (found) setSelectedHendelse(found);
       }
@@ -161,7 +164,7 @@ export default function ManagementPage({ initialId, onClearInitial }) {
     } finally {
       setLoading(false);
     }
-  }, [initialId]);
+  }, [initialId, canManage]);
 
   useEffect(() => {
     fetchData();
@@ -187,12 +190,22 @@ export default function ManagementPage({ initialId, onClearInitial }) {
           onChange={e => setSearchTerm(e.target.value)}
           style={{ marginBottom: '1.5rem' }}
         />
+        
+        {!canManage && (
+          <div className="alert alert-info" style={{ marginBottom: '1rem' }}>
+            Du har kun lesetilgang. Kontakt admin for å behandle hendelser.
+          </div>
+        )}
+
         <div className={styles.hendelserGrid}>
           {filtered.map(h => (
             <div 
               key={h.id} 
-              className={`card ${styles.hendelseCard} ${selectedHendelse?.id === h.id ? styles.activeCard : ''}`}
-              onClick={() => setSelectedHendelse(h)}
+              className={`card ${styles.hendelseCard} 
+                ${selectedHendelse?.id === h.id ? styles.activeCard : ''}
+                ${!canManage ? styles.readOnlyCard : ''}`}
+              onClick={() => canManage && setSelectedHendelse(h)}
+              style={{ cursor: canManage ? 'pointer' : 'not-allowed' }}
             >
               <div className={styles.hendelseHeader}>
                 <h3>{h.tittel}</h3>
@@ -209,7 +222,6 @@ export default function ManagementPage({ initialId, onClearInitial }) {
           statuses={statuses}
           onClose={handleClose}
           onUpdated={() => {
-            // Oppdaterer data og sørger for at panelet reflekterer ny status
             fetchData().then(() => {
                hendelser.getAll().then(res => {
                 const found = res.find(item => (item.Hendelse_ID || item.id) === selectedHendelse.id);
