@@ -227,16 +227,16 @@ export default function ManagementPage({ initialId, onClearInitial }) {
         : [];
 
       const defaultPriorityOrder = {
-        'Meget Høy': 5,
-        'Høy': 4,
-        'Middels': 3,
-        'Lav': 2,
-        'Meget Lav': 1,
+        'meget høy': 5,
+        'høy': 4,
+        'middels': 3,
+        'lav': 2,
+        'meget lav': 1,
       };
       const priorityOrder = Array.isArray(p)
         ? p.reduce((map, item, index) => {
-          const name = (item.Navn || item.navn || '').toString().toLowerCase();
-          map[name] = defaultPriorityOrder[name] ?? (index + 1);
+          const name = (item.Navn || item.navn || '').toString().toLowerCase().trim();
+          map[name] = defaultPriorityOrder[name] ?? (p.length - index);
           return map;
         }, {})
         : defaultPriorityOrder;
