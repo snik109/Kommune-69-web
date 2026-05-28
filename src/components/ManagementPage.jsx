@@ -226,6 +226,20 @@ export default function ManagementPage({ initialId, onClearInitial }) {
         ? rawHendelser.map(normalizeHendelse)
         : [];
 
+      const defaultPriorityOrder = {
+        'Meget Høy': 5,
+        'Høy': 4,
+        'Middels': 3,
+        'Lav': 2,
+        'Meget Lav': 1,
+      };
+      const priorityOrder = Array.isArray(p)
+        ? p.reduce((map, item, index) => {
+          const name = (item.Navn || item.navn || '').toString().toLowerCase();
+          map[name] = defaultPriorityOrder[name] ?? (index + 1);
+          return map;
+        }, {})
+        : defaultPriorityOrder;
       const statusOrder = {
         'åpen': 1,
         'under behandling': 2,
@@ -238,8 +252,8 @@ export default function ManagementPage({ initialId, onClearInitial }) {
       normalized.sort((a, b) => {
         const aStatusKey = (a.status || '').toLowerCase();
         const bStatusKey = (b.status || '').toLowerCase();
-        const aPriority = Number(a.prioriteringId ?? 0);
-        const bPriority = Number(b.prioriteringId ?? 0);
+        const aPriority = priorityOrder[(a.prioritering || '').toLowerCase()] ?? Number(a.prioriteringId ?? 0);
+        const bPriority = priorityOrder[(b.prioritering || '').toLowerCase()] ?? Number(b.prioriteringId ?? 0);
         const aStatusRank = statusOrder[aStatusKey] ?? 50;
         const bStatusRank = statusOrder[bStatusKey] ?? 50;
 
