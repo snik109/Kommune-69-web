@@ -26,6 +26,8 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [detail, setDetail] = useState(hendelse);
+
   const currentUser = JSON.parse(localStorage.getItem('user'));
   const innloggetBrukerId = currentUser?.Bruker_ID || currentUser?.id;
 
@@ -42,6 +44,12 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
         setLoadingDetails(false);
       }
     });
+
+    // Fetch full hendelse details (may include full Beskrivelse)
+    hendelser.getById(hendelse.id)
+      .then(d => { if (isMounted && d) setDetail(normalizeHendelse(d)); })
+      .catch(() => { /* ignore */ });
+
     return () => { isMounted = false; };
   }, [hendelse.id]);
 
@@ -107,18 +115,23 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
       <div className={styles.detailHeader}>
         <div>
           <h2>Behandle hendelse</h2>
-          <p style={{ margin: 0, fontSize: '0.9rem', color: 'gray' }}>{hendelse.tittel}</p>
+          <p style={{ margin: 0, fontSize: '0.9rem', color: 'gray' }}>{detail?.tittel || hendelse.tittel}</p>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
       </div>
 
       <div className={styles.detailContent}>
+        <div className={styles.detailSection}>
+          <label>Beskrivelse</label>
+          <p style={{ color: 'var(--c-text-2)' }}>{detail?.beskrivelse || hendelse.beskrivelse || 'Ingen beskrivelse'}</p>
+        </div>
+
         <div className={styles.detailGrid} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '1.5rem' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>STATUS</label>
             <select 
               className="select" 
-              value={hendelse.status || ""} 
+              value={detail?.status || hendelse.status || ""} 
               onChange={e => handleStatusChange(e.target.value)} 
               disabled={saving}
             >
@@ -130,7 +143,7 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>PRIORITET</label>
             <select 
               className="select" 
-              value={hendelse.prioriteringId ? String(hendelse.prioriteringId) : ""} 
+              value={detail?.prioriteringId ? String(detail.prioriteringId) : (hendelse.prioriteringId ? String(hendelse.prioriteringId) : "")} 
               onChange={e => handlePriorityChange(e.target.value)} 
               disabled={saving}
             >
@@ -146,7 +159,7 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>ANSVARLIG</label>
             <select 
               className="select" 
-              value={hendelse.ansvarligId ? String(hendelse.ansvarligId) : ""} 
+              value={detail?.ansvarligId ? String(detail.ansvarligId) : (hendelse.ansvarligId ? String(hendelse.ansvarligId) : "")} 
               onChange={e => handleResponsibleChange(e.target.value)} 
               disabled={saving}
             >
@@ -162,16 +175,16 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
 
         <hr className="divider" />
 
-        <div className={styles.detailSection}>
-          <h3>Utførte Tiltak</h3>
-          <div className={styles.actionsList}>
-            {actions.map(a => (
-              <div key={a.Tiltak_ID} className={styles.actionItem} style={{ background: '#f5f5f5', padding: '10px', borderRadius: '4px', marginBottom: '5px' }}>
-                <p style={{ margin: 0, fontSize: '0.9rem' }}>{a.Beskrivelse}</p>
-                <small>{a.UtførtAvNavn} • {new Date(a.Tidspunkt).toLocaleDateString()}</small>
-              </div>
-            ))}
-          </div>
+          <div className={styles.detailSection}>
+            <h3>Utførte Tiltak</h3>
+            <div className={styles.actionsList}>
+              {actions.map(a => (
+                <div key={a.Tiltak_ID} className={styles.actionItem} style={{ background: '#f5f5f5', padding: '10px', borderRadius: '4px', marginBottom: '5px' }}>
+                  <p style={{ margin: 0, fontSize: '0.9rem' }}>{a.Beskrivelse || a.beskrivelse || a.Beskrivelse}</p>
+                  <small>{a.UtførtAvNavn || a.UtfortAvNavn} • {new Date(a.Tidspunkt).toLocaleDateString()}</small>
+                </div>
+              ))}
+            </div>
           <form onSubmit={handleAddAction} style={{ display: 'flex', gap: '5px', marginTop: '10px' }}>
             <input className="input" placeholder="Nytt tiltak..." value={newAction} onChange={e => setNewAction(e.target.value)} />
             <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>Legg til</button>
