@@ -21,7 +21,9 @@ function isAdmin(user) {
 
 function isManagement(user) {
   const r = getRole(user);
-  return r === 'admin' || r === 'management';
+  if (r === 'admin') return true;
+  else if (r === 'management') return true;
+  else return false;
 }
 
 export default function App() {
