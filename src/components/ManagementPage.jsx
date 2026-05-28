@@ -49,7 +49,6 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
       }
     });
 
-    // Fetch full hendelse details (may include full Beskrivelse)
     hendelser.getById(hendelse.id)
       .then(d => { if (isMounted && d) setDetail(normalizeHendelse(d)); })
       .catch(() => { /* ignore */ });
@@ -328,7 +327,6 @@ export default function ManagementPage({ initialId, onClearInitial }) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // VIKTIG: Finn selectedHendelse direkte hver gang listen endres
   const selectedHendelse = hendelserList.find(h => h.id === selectedId);
 
   const filtered = useMemo(() => 

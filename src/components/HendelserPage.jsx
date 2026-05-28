@@ -55,7 +55,6 @@ function CreateModal({ onClose, onCreated, statuses = [], priorities = [] }) {
               <label>Status</label>
               <select className="select" value={form.statusId} onChange={e => set('statusId', e.target.value)}>
                 <option value="">Velg status</option>
-                {/* SIKRING: Sjekker at statuses er en array før .map */}
                 {Array.isArray(statuses) && statuses.map(s => (
                   <option key={s.Status_ID} value={s.Status_ID}>{s.Navn}</option>
                 ))}

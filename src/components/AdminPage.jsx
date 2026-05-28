@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { brukere, roller, lookup, auth } from '../services/api';
 import styles from '../styles/AdminPage.module.css';
 
-// ─── Section wrapper ────────────────────────────────────────────
-
 function Section({ title, description, children }) {
   return (
     <section className={styles.section}>
@@ -17,8 +15,6 @@ function Section({ title, description, children }) {
     </section>
   );
 }
-
-// ─── Register user modal ────────────────────────────────────────
 
 function RegisterModal({ roles, onClose, onCreated }) {
   const [form, setForm] = useState({ brukernavn: '', passord: '', epost: '', displayName: '', fullName: '', rolleId: '' });
@@ -104,8 +100,6 @@ function RegisterModal({ roles, onClose, onCreated }) {
     </div>
   );
 }
-
-// ─── Edit user modal ────────────────────────────────────────────
 
 function EditUserModal({ user, allRoles, onClose, onSaved }) {
   const [form, setForm] = useState({ brukernavn: user.brukernavn || '', epost: user.epost || '', displayName: user.displayName || '', fullName: user.fullName || '' });
@@ -233,9 +227,6 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
   );
 }
 
-// ─── Roles panel ────────────────────────────────────────────────
-// Calls GET /roller (roller.getAll) and POST /roller (roller.create)
-
 function RollerPanel({ roles, setRoles, loading }) {
   const [newNavn, setNewNavn] = useState('');
   const [saving, setSaving] = useState(false);
@@ -322,9 +313,6 @@ function RollerPanel({ roles, setRoles, loading }) {
   );
 }
 
-// ─── Categories panel ───────────────────────────────────────────
-// GET /lookup/kategorier — read only (no standalone POST route on backend)
-
 function KategorierPanel({ categories, loading }) {
   return (
     <div className={`card ${styles.panelCard}`}>
@@ -354,8 +342,6 @@ function KategorierPanel({ categories, loading }) {
     </div>
   );
 }
-
-// ─── Main ───────────────────────────────────────────────────────
 
 export default function AdminPage() {
   const [users, setUsers]           = useState(null);
@@ -406,7 +392,6 @@ export default function AdminPage() {
 
       {error && <div className="alert alert-error" style={{ marginBottom: '1.25rem' }}>{error}</div>}
 
-      {/* ── Users ─────────────────────────────────────────── */}
       <Section
         title="Kontoer"
         description="Opprett, rediger og slett brukerkontoer. Tildel roller fra redigeringsmodalen."
@@ -475,7 +460,6 @@ export default function AdminPage() {
         </div>
       </Section>
 
-      {/* ── Roles + Categories ────────────────────────────── */}
       <Section
         title="Roller og kategorier"
         description="Legg til nye roller som kan tildeles brukere. Kategorier vises som de er registrert i systemet."
@@ -510,7 +494,6 @@ export default function AdminPage() {
   );
 }
 
-// Normalize role objects from backend (handles fields like Rolle_ID / Navn)
 function normalizeRole(raw) {
   if (!raw) return raw;
   const id = raw.Rolle_ID ?? raw.rolleId ?? raw.id ?? raw.RolleId ?? raw.RolleId;

@@ -24,14 +24,12 @@ async function request(path, options = {}) {
   return res.json();
 }
 
-// --- Auth ---
 export const auth = {
   login: (brukernavn, passord) =>
     request('/brukere/login', { method: 'POST', body: JSON.stringify({ username: brukernavn, password: passord }) }),
   logout: () =>
     request('/brukere/logout', { method: 'POST' }),
   register: (data) => {
-    // normalize Norwegian field names to backend expectations
     const payload = { ...data };
     if (payload.brukernavn) { payload.username = payload.brukernavn; delete payload.brukernavn; }
     if (payload.passord) { payload.password = payload.passord; delete payload.passord; }
@@ -39,7 +37,6 @@ export const auth = {
   },
 };
 
-// --- Brukere ---
 export const brukere = {
   getAll: () => request('/brukere'),
   getById: (id) => request(`/brukere/${id}`),
@@ -48,7 +45,6 @@ export const brukere = {
   delete: (id) => request(`/brukere/${id}`, { method: 'DELETE' }),
 };
 
-// --- Roller ---
 export const roller = {
   getAll: () => request('/roller'),
   assign: (brukerId, rolleId) =>
@@ -58,7 +54,6 @@ export const roller = {
   getForUser: (brukerId) => request(`/roller/${brukerId}/roller`),
 };
 
-// --- Hendelser ---
 export const hendelser = {
   getAll: () => request('/hendelser'),
   getById: (id) => request(`/hendelser/${id}`),
@@ -80,30 +75,25 @@ export const hendelser = {
     request(`/hendelser/${id}/kategorier/${kategoriId}`, { method: 'DELETE' }),
 };
 
-// --- Kommentarer ---
 export const kommentarer = {
   getByHendelse: (hendelseId) => request(`/kommentarer/${hendelseId}/kommentarer`),
   
-  // Endret fra (hendelseId, innhold) til (hendelseId, brukerId, tekst)
   create: (hendelseId, brukerId, tekst) =>
     request(`/kommentarer/${hendelseId}/kommentarer`, { 
       method: 'POST', 
       body: JSON.stringify({ 
-        brukerId, // Sender nå brukerId
-        tekst     // Bruker feltnavnet 'tekst' som forespurt
+        brukerId,
+        tekst
       }) 
     }),
 
   delete: (id) => request(`/kommentarer/${id}`, { method: 'DELETE' }),
 };
 
-// --- Tiltak ---
 export const tiltak = {
-  // Henter alle tiltak knyttet til en spesifikk hendelse
   getByHendelse: (hendelseId) => 
     request(`/tiltak/${hendelseId}/tiltak`),
 
-  // Oppretter et nytt tiltak
   create: (hendelseId, beskrivelse) =>
     request(`/tiltak/${hendelseId}/tiltak`, { 
       method: 'POST', 
@@ -111,7 +101,6 @@ export const tiltak = {
     }),
 };
 
-// --- Lookup ---
 export const lookup = {
   getStatuses: () => request('/lookup/statuser'),
   createStatus: (data) => request('/lookup/statuser', { method: 'POST', body: JSON.stringify(data) }),
