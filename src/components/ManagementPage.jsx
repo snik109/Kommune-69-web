@@ -60,6 +60,10 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
     try {
       await hendelser.updateStatus(hendelse.id, obj.Status_ID);
       await onUpdated();
+      try {
+        const updated = await hendelser.getById(hendelse.id);
+        if (updated) setDetail(normalizeHendelse(updated));
+      } catch (_) { /* ignore */ }
     } catch (err) { alert("Statusfeil: " + err.message); }
     finally { setSaving(false); }
   };
@@ -70,6 +74,10 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
       const pId = Number(val);
       await hendelser.updatePriority(hendelse.id, pId);
       await onUpdated();
+      try {
+        const updated = await hendelser.getById(hendelse.id);
+        if (updated) setDetail(normalizeHendelse(updated));
+      } catch (_) { /* ignore */ }
     } catch (err) { alert("Prioriteringsfeil: " + err.message); }
     finally { setSaving(false); }
   };
@@ -80,6 +88,10 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
       const bId = val === "" ? null : Number(val);
       await hendelser.updateResponsible(hendelse.id, bId);
       await onUpdated();
+      try {
+        const updated = await hendelser.getById(hendelse.id);
+        if (updated) setDetail(normalizeHendelse(updated));
+      } catch (_) { /* ignore */ }
     } catch (err) { alert("Ansvarlig-feil: " + err.message); }
     finally { setSaving(false); }
   };
