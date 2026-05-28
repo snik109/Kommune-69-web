@@ -117,14 +117,7 @@ function EditUserModal({ user, allRoles, onClose, onSaved }) {
   useEffect(() => {
     roller.getForUser(user.id)
       .then(data => {
-        const mapped = Array.isArray(data) ? data.map(d => {
-          const norm = normalizeRole(d);
-          // preserve backend role id mapping if present
-          if (d.Rolle_ID != null) norm.rolleId = d.Rolle_ID;
-          if (d.rolleId != null) norm.rolleId = d.rolleId;
-          return norm;
-        }) : [];
-        setUserRoles(mapped);
+        setUserRoles(normalizeRoleArray(data));
       })
       .catch(() => setUserRoles([]))
       .finally(() => setLoadingRoles(false));
@@ -528,6 +521,17 @@ function normalizeRole(raw) {
   return out;
 }
 
+function normalizeRoleArray(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map(normalizeRole);
+  if (Array.isArray(raw.roller)) return raw.roller.map(normalizeRole);
+  if (Array.isArray(raw.Roller)) return raw.Roller.map(normalizeRole);
+  if (Array.isArray(raw.roles)) return raw.roles.map(normalizeRole);
+  if (Array.isArray(raw.data)) return raw.data.map(normalizeRole);
+  if (Array.isArray(raw.items)) return raw.items.map(normalizeRole);
+  return [normalizeRole(raw)];
+}
+
 function normalizeUser(raw) {
   if (!raw) return raw;
   return {
@@ -536,6 +540,6 @@ function normalizeUser(raw) {
     epost: raw.Email ?? raw.epost ?? raw.email ?? '',
     displayName: raw.DisplayName ?? raw.displayName ?? raw.display_name ?? '',
     fullName: raw.FullName ?? raw.fullName ?? raw.full_name ?? '',
-    roller: Array.isArray(raw.roller) ? raw.roller.map(normalizeRole) : raw.roller,
+    roller: normalizeRoleArray(raw.roller ?? raw.Roller ?? raw.roles ?? raw.Role ?? raw.RoleList ?? raw.rolesData ?? raw.data ?? raw.items),
   };
 }
