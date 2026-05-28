@@ -12,8 +12,12 @@ function normalizeHendelse(raw) {
     statusId: raw.Status_ID ?? raw.statusId,
     prioritering: raw.PrioriteringNavn ?? raw.prioritering ?? '',
     prioriteringId: raw.Prioritering_ID ?? raw.prioriteringId,
-    ansvarlig: raw.AnsvarligNavn ?? raw.ansvarlig ?? '',
-    ansvarligId: raw.Ansvarlig_ID ?? raw.ansvarligId,
+    ansvarlig: raw.AnsvarligNavn ?? raw.ansvarlig ?? (
+      raw.Ansvarlig && (raw.Ansvarlig.DisplayName || raw.Ansvarlig.Navn || raw.Ansvarlig.username)
+    ) ?? '',
+    ansvarligId: raw.Ansvarlig_ID ?? raw.ansvarligId ?? (
+      raw.Ansvarlig && (raw.Ansvarlig.Bruker_ID ?? raw.Ansvarlig.id)
+    ),
     tidspunkt_opprettet: raw.Tidspunkt_Opprettet ?? raw.tidspunkt_opprettet ?? new Date().toISOString(),
   };
 }
@@ -171,14 +175,14 @@ function DetailPanel({ hendelse, statuses, priorities, users, onClose, onUpdated
             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>ANSVARLIG</label>
             <select 
               className="select" 
-              value={detail?.ansvarligId ? String(detail.ansvarligId) : (hendelse.ansvarligId ? String(hendelse.ansvarligId) : "")} 
+              value={detail?.ansvarligId != null ? String(detail.ansvarligId) : (hendelse.ansvarligId != null ? String(hendelse.ansvarligId) : "")} 
               onChange={e => handleResponsibleChange(e.target.value)} 
               disabled={saving}
             >
               <option value="">-- Ingen --</option>
               {users.map(u => (
-                <option key={u.Bruker_ID} value={String(u.Bruker_ID)}>
-                  {u.DisplayName || u.brukernavn}
+                <option key={u.Bruker_ID ?? u.id} value={String(u.Bruker_ID ?? u.id)}>
+                  {u.DisplayName ?? u.displayName ?? u.Navn ?? u.navn ?? u.Username ?? u.username ?? u.brukernavn ?? 'Ukjent'}
                 </option>
               ))}
             </select>
