@@ -2,9 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { hendelser, kommentarer, lookup, tiltak, brukere } from '../services/api';
 import styles from '../styles/ManagementPage.module.css';
 
-/**
- * Mapper databasefelt (PascalCase) til frontend-felt (camelCase)
- */
 function normalizeHendelse(raw) {
   if (!raw) return null;
   return {
@@ -221,22 +218,34 @@ export default function ManagementPage({ initialId, onClearInitial }) {
         lookup.getPriorities(),
         brukere.getAll()
       ]);
-      
-      const normalized = Array.isArray(h) ? h.map(normalizeHendelse) : [];
-      
+
+      const rawHendelser = Array.isArray(h)
+        ? h
+        : h?.hendelser || h?.data || h?.items || [];
+      const normalized = Array.isArray(rawHendelser)
+        ? rawHendelser.map(normalizeHendelse)
+        : [];
+
       const order = { 'åpen': 1, 'under behandling': 2, 'løst': 3, 'lukket': 4 };
       normalized.sort((a, b) => {
-        const aVal = order[a.status.toLowerCase()] || 99;
-        const bVal = order[b.status.toLowerCase()] || 99;
-        return aVal !== bVal ? aVal - bVal : (b.prioriteringId - a.prioriteringId);
+        const aVal = order[(a.status || '').toLowerCase()] || 99;
+        const bVal = order[(b.status || '').toLowerCase()] || 99;
+        return aVal !== bVal ? aVal - bVal : ((b.prioriteringId || 0) - (a.prioriteringId || 0));
       });
 
       setHendelserList(normalized);
-      setStatuses(s?.statuser || []);
-      setPriorities(p?.prioriteringer || []);
-      setUsers(Array.isArray(u) ? u : []);
-    } catch (err) { console.error("Data-load feilet:", err); }
-    finally { setLoading(false); }
+      setStatuses(Array.isArray(s) ? s : (s?.statuser || s?.statuses || []));
+      setPriorities(Array.isArray(p) ? p : (p?.prioriteringer || p?.priorities || []));
+      setUsers(Array.isArray(u) ? u : (u?.brukere || u?.users || []));
+    } catch (err) {
+      console.error('Data-load feilet:', err);
+      setHendelserList([]);
+      setStatuses([]);
+      setPriorities([]);
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -245,7 +254,9 @@ export default function ManagementPage({ initialId, onClearInitial }) {
   const selectedHendelse = hendelserList.find(h => h.id === selectedId);
 
   const filtered = useMemo(() => 
-    hendelserList.filter(h => h.tittel.toLowerCase().includes(searchTerm.toLowerCase())),
+    (Array.isArray(hendelserList) ? hendelserList : []).filter(h =>
+      (h.tittel || '').toLowerCase().includes(searchTerm.toLowerCase())
+    ),
     [hendelserList, searchTerm]
   );
 
