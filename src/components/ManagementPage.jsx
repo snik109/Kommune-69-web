@@ -226,11 +226,46 @@ export default function ManagementPage({ initialId, onClearInitial }) {
         ? rawHendelser.map(normalizeHendelse)
         : [];
 
-      const order = { 'åpen': 1, 'under behandling': 2, 'løst': 3, 'lukket': 4 };
+      const statusOrder = {
+        'åpen': 1,
+        'under behandling': 2,
+        'løst': 3,
+        'lukket': 4,
+      };
+      const isOpenStatus = status => ['åpen', 'under behandling'].includes(status);
+      const isClosedStatus = status => ['løst', 'lukket'].includes(status);
+
       normalized.sort((a, b) => {
-        const aVal = order[(a.status || '').toLowerCase()] || 99;
-        const bVal = order[(b.status || '').toLowerCase()] || 99;
-        return aVal !== bVal ? aVal - bVal : ((b.prioriteringId || 0) - (a.prioriteringId || 0));
+        const aStatusKey = (a.status || '').toLowerCase();
+        const bStatusKey = (b.status || '').toLowerCase();
+        const aPriority = Number(a.prioriteringId ?? 0);
+        const bPriority = Number(b.prioriteringId ?? 0);
+        const aStatusRank = statusOrder[aStatusKey] ?? 50;
+        const bStatusRank = statusOrder[bStatusKey] ?? 50;
+
+        const aOpen = isOpenStatus(aStatusKey);
+        const bOpen = isOpenStatus(bStatusKey);
+        const aClosed = isClosedStatus(aStatusKey);
+        const bClosed = isClosedStatus(bStatusKey);
+
+        if (aOpen && bOpen) {
+          if (aPriority !== bPriority) return bPriority - aPriority;
+          return aStatusRank - bStatusRank;
+        }
+
+        if (aClosed && bClosed) {
+          if (aStatusRank !== bStatusRank) return aStatusRank - bStatusRank;
+          return bPriority - aPriority;
+        }
+
+        if (aOpen && !bOpen) return -1;
+        if (!aOpen && bOpen) return 1;
+
+        if (aClosed && !bClosed) return 1;
+        if (!aClosed && bClosed) return -1;
+
+        if (aPriority !== bPriority) return bPriority - aPriority;
+        return aStatusRank - bStatusRank;
       });
 
       setHendelserList(normalized);
